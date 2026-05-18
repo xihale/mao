@@ -1,0 +1,69 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = '毛泽东选集全七卷在线阅读' } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} · 毛泽东选集</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="alternate" type="application/rss+xml" title="毛泽东选集" href={new URL('/rss.xml', Astro.site)} />
+
+    <link rel="preconnect" href="https://fonts.loli.net" crossorigin />
+    <link rel="preconnect" href="https://gstatic.loli.net" crossorigin />
+    <link href="https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet" />
+
+    <style is:global>
+      :root {
+        --bg: #0c0c0c;
+        --bg2: #161616;
+        --text: #d4d0c8;
+        --text2: #999;
+        --text3: #666;
+        --line: #222;
+        --serif: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html { -webkit-text-size-adjust: 100%; }
+
+      body {
+        font-family: var(--serif);
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.8;
+        min-height: 100dvh;
+      }
+
+      a { color: var(--text); text-decoration: none; }
+      a:hover { color: var(--text2); }
+
+      ::selection { background: #444; color: #fff; }
+
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+
+
+      @media (max-width: 767px) {
+        .wrap { padding: 0 1rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" style="padding-top:2rem;">
+      <slot />
+    </main>
+  </body>
+</html>

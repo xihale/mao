@@ -1,0 +1,18 @@
+{
+  "name": "mao-selected-works",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bunx --bun astro dev",
+    "build": "bun run generate-search-index.mjs && bunx --bun astro build",
+    "preview": "bunx --bun astro preview",
+    "extract": "bun run extract-epub.mjs"
+  },
+  "dependencies": {
+    "@astrojs/rss": "^4.0.18",
+    "astro": "^5.7.10",
+    "fuse.js": "^7.3.0",
+    "gray-matter": "^4.0.3",
+    "xml2js": "^0.6.2"
+  }
+}

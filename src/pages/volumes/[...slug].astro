@@ -1,0 +1,139 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('volumes');
+  const sorted = articles.sort((a, b) => {
+    if (a.data.volume !== b.data.volume) return a.data.volume - b.data.volume;
+    return a.data.order - b.data.order;
+  });
+  return sorted.map((article, idx) => ({
+    params: { slug: article.id },
+    props: {
+      article,
+      prev: idx > 0 ? sorted[idx - 1] : null,
+      next: idx < sorted.length - 1 ? sorted[idx + 1] : null,
+    },
+  }));
+}
+
+const { article, prev, next } = Astro.props;
+const { Content } = await render(article);
+---
+
+<Layout title={article.data.title}>
+  <a href="/" style="font-size:0.82rem;color:var(--text3);">&larr; 目录</a>
+
+  <h1 style="font-size:1.5rem;margin:0.8rem 0 0.3rem;">{article.data.title}</h1>
+  <p style="font-size:0.82rem;color:var(--text2);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
+    {article.data.period && <>{article.data.period}</>}
+    {article.data.period && article.data.date && <> · </>}
+    {article.data.date && <>{article.data.date}</>}
+  </p>
+
+  <article class="content">
+    <Content />
+  </article>
+
+  <nav style="display:flex;justify-content:space-between;margin-top:3rem;gap:1rem;">
+    {prev && <a href={`/volumes/${prev.id}`} style="font-size:0.85rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
+    {!prev && <span />}
+    {next && <a href={`/volumes/${next.id}`} style="font-size:0.85rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
+  </nav>
+</Layout>
+
+<style>
+  .content {
+    line-height: 1.9;
+    font-size: 1rem;
+  }
+
+  .content :global(h1) { display: none; }
+
+  .content :global(h2) {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 2rem 0 1rem;
+  }
+
+  .content :global(h3) {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.8rem;
+  }
+
+  .content :global(p) {
+    margin-bottom: 1rem;
+    text-indent: 2em;
+  }
+
+  .content :global(blockquote) {
+    border-left: 2px solid var(--line);
+    padding-left: 1rem;
+    color: var(--text2);
+    margin: 1.5rem 0;
+  }
+
+  .content :global(blockquote p) { text-indent: 0; }
+
+  .content :global(strong) { font-weight: 600; }
+
+  .content :global(sup) { color: var(--text3); font-size: 0.75em; }
+
+  .content :global(.footnote-ref) {
+    color: var(--text3);
+    text-decoration: none;
+    font-size: 0.8em;
+    vertical-align: super;
+  }
+
+  .content :global(.footnotes) {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--text2);
+  }
+
+  .content :global(.footnotes h2) { display: none; }
+
+  .content :global(.footnotes ol) { padding-left: 1.2rem; }
+
+  .content :global(.footnotes li) {
+    margin-bottom: 0.5rem;
+    line-height: 1.75;
+    text-indent: 0;
+  }
+
+  .content :global(.footnotes li p) { text-indent: 0; margin-bottom: 0; }
+
+  .content :global(.footnotes li:target) {
+    background: var(--bg2);
+    padding: 0.2rem 0.4rem;
+    border-radius: 2px;
+  }
+
+  .content :global(.footnotes .data-footnote-backref) {
+    color: var(--text3);
+    text-decoration: none;
+  }
+
+  .content :global(hr) {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 2rem 0;
+  }
+
+  .content :global(ol),
+  .content :global(ul) {
+    padding-left: 2em;
+    margin-bottom: 1rem;
+  }
+
+  .content :global(li) { margin-bottom: 0.3rem; }
+
+  @media (max-width: 767px) {
+    .content { font-size: 0.95rem; }
+  }
+</style>
