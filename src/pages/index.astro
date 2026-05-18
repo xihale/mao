@@ -19,12 +19,17 @@ const grouped = volumes.map(v => ({
 ---
 
 <Layout title="目录">
-  <h1 style="font-size:1.6rem;margin-bottom:0.3rem;">毛泽东选集</h1>
-  <p style="font-size:0.85rem;color:var(--text2);margin-bottom:2rem;">全七卷 · {articles.length} 篇</p>
-
-  <div class="search-box">
-    <input type="text" id="search-input" placeholder="搜索文章..." autocomplete="off" />
-    <div id="search-results" class="search-results hidden"></div>
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2rem;">
+    <div>
+      <h1 style="font-size:1.6rem;margin-bottom:0.3rem;">毛泽东选集</h1>
+      <p style="font-size:0.85rem;color:var(--text2);">全七卷 · {articles.length} 篇</p>
+    </div>
+    <a href="/search" class="search-icon" aria-label="搜索">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    </a>
   </div>
 
   {grouped.map(g => (
@@ -45,109 +50,17 @@ const grouped = volumes.map(v => ({
 </Layout>
 
 <style>
-  .search-box { position: relative; margin-bottom: 2.5rem; }
-
-  .search-box input {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--line);
+  .search-icon {
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    padding: 0.3rem;
     border-radius: 4px;
-    font-family: var(--serif);
-    font-size: 0.9rem;
-    background: var(--bg2);
-    color: var(--text);
+    transition: color 0.15s;
   }
-
-  .search-box input::placeholder { color: var(--text3); }
-  .search-box input:focus { outline: none; border-color: #444; }
-
-  .search-results {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0; right: 0;
-    background: var(--bg2);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    max-height: 360px;
-    overflow-y: auto;
-    z-index: 50;
-  }
-
-  .search-results.hidden { display: none; }
-
-  .search-result-item {
-    display: block;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--line);
-    color: var(--text);
-  }
-
-  .search-result-item:last-child { border-bottom: none; }
-  .search-result-item:hover { background: var(--bg); }
-
-  .search-result-vol { font-size: 0.7rem; color: var(--text3); }
-  .search-result-title { display: block; }
-  .search-result-snippet { font-size: 0.8rem; color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-icon:hover { color: var(--text); }
 
   @media (max-width: 767px) {
     li a { flex-direction: column; gap: 0.1rem; }
   }
 </style>
-
-<script>
-  import Fuse from 'fuse.js';
-
-  const input = document.getElementById('search-input') as HTMLInputElement;
-  const results = document.getElementById('search-results') as HTMLDivElement;
-  let fuse: Fuse<any> | null = null;
-
-  const volLabels: Record<number, string> = {
-    1: '第一卷', 2: '第二卷', 3: '第三卷', 4: '第四卷',
-    5: '第五卷', 6: '第六卷', 7: '第七卷'
-  };
-
-  async function load() {
-    if (fuse) return;
-    const resp = await fetch('/search-index.json');
-    const data = await resp.json();
-    fuse = new Fuse(data, {
-      keys: [{ name: 'title', weight: 0.7 }, { name: 'body', weight: 0.3 }],
-      threshold: 0.4,
-      minMatchCharLength: 2
-    });
-  }
-
-  input.addEventListener('focus', load);
-
-  input.addEventListener('input', () => {
-    const q = input.value.trim();
-    if (!q || !fuse) { results.classList.add('hidden'); return; }
-    const hits = fuse.search(q).slice(0, 15);
-    if (hits.length === 0) {
-      results.innerHTML = '<div style="padding:0.6rem;color:var(--text3);">未找到</div>';
-    } else {
-      results.innerHTML = hits.map(r => {
-        const item = r.item;
-        let snippet = '';
-        if (item.body) {
-          const idx = item.body.toLowerCase().indexOf(q.toLowerCase());
-          if (idx >= 0) {
-            const s = Math.max(0, idx - 20);
-            const e = Math.min(item.body.length, idx + 60);
-            snippet = (s > 0 ? '...' : '') + item.body.slice(s, e) + (e < item.body.length ? '...' : '');
-          }
-        }
-        return `<a href="/volumes/${item.id}" class="search-result-item">
-          <span class="search-result-vol">${volLabels[item.volume] || ''}</span>
-          <span class="search-result-title">${item.title}</span>
-          ${snippet ? `<span class="search-result-snippet">${snippet}</span>` : ''}
-        </a>`;
-      }).join('');
-    }
-    results.classList.remove('hidden');
-  });
-
-  document.addEventListener('click', e => {
-    if (!(e.target as HTMLElement).closest('.search-box')) results.classList.add('hidden');
-  });
-</script>

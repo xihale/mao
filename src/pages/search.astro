@@ -1,0 +1,171 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="搜索">
+  <a href="/" style="font-size:0.82rem;color:var(--text3);">&larr; 目录</a>
+
+  <div class="search-wrap">
+    <input type="text" id="q" placeholder="搜索文章..." autocomplete="off" autofocus />
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="results" class="results"></div>
+
+  <script type="module" is:inline>
+    const input = document.getElementById('q');
+    const resultsEl = document.getElementById('results');
+    const statusEl = document.getElementById('status');
+    let timer;
+
+    let pagefindSearch;
+    try {
+      const pf = await import('/pagefind/pagefind.js');
+      await pf.init();
+      pagefindSearch = (q) => pf.search(q);
+    } catch {
+      statusEl.textContent = '搜索不可用，请先运行 bun run build';
+    }
+
+    async function search(query) {
+      if (!pagefindSearch) return;
+      if (!query.trim()) {
+        resultsEl.innerHTML = '';
+        statusEl.textContent = '';
+        return;
+      }
+      const res = await pagefindSearch(query);
+      const items = await Promise.all(res.results.slice(0, 20).map(r => r.data()));
+
+      if (!items.length) {
+        resultsEl.innerHTML = '';
+        statusEl.textContent = '没有找到「' + query + '」的相关结果';
+        return;
+      }
+
+      statusEl.textContent = '找到 ' + items.length + ' 个结果';
+      resultsEl.innerHTML = items.map(r => {
+        // r.data() returns: { url, excerpt, meta: { title }, sub_results }
+        const title = r.meta?.title || r.url?.split('/').pop() || r.url || '';
+        const url = r.url || '#';
+        const excerpt = r.excerpt || '';
+        // Also try sub_results for context
+        const subs = r.sub_results || [];
+        const extraSections = subs.length > 1
+          ? subs.slice(1).map(s => {
+              const st = s.title || '';
+              const se = s.excerpt || '';
+              return `<div class="sub-result">
+                ${st ? `<span class="sub-title">${esc(st)}</span>` : ''}
+                ${se ? `<span class="sub-excerpt">${se}</span>` : ''}
+              </div>`;
+            }).join('')
+          : '';
+
+        return `<a href="${url}" class="result-card">
+          <div class="result-title">${esc(title)}</div>
+          ${excerpt ? `<div class="result-excerpt">${excerpt}</div>` : ''}
+          ${extraSections}
+        </a>`;
+      }).join('');
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => search(input.value), 200);
+    });
+  </script>
+</Layout>
+
+<style>
+  .search-wrap {
+    margin: 1.5rem 0 1rem;
+  }
+
+  .search-wrap input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: var(--serif);
+    font-size: 0.95rem;
+    background: var(--bg2);
+    color: var(--text);
+  }
+
+  .search-wrap input::placeholder { color: var(--text3); }
+  .search-wrap input:focus { outline: none; border-color: #444; }
+
+  .status {
+    font-size: 0.82rem;
+    color: var(--text3);
+    margin-bottom: 0.8rem;
+  }
+
+  .results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .result-card {
+    display: block;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg2);
+  }
+
+  .result-card:hover {
+    border-color: #444;
+  }
+
+  .result-title {
+    font-size: 0.95rem;
+    color: var(--text);
+    margin-bottom: 0.2rem;
+  }
+
+  .result-excerpt {
+    font-size: 0.82rem;
+    color: var(--text3);
+    line-height: 1.6;
+  }
+
+  .result-excerpt :global(mark) {
+    color: var(--text);
+    background: none;
+    font-weight: 600;
+  }
+
+  .sub-result {
+    margin-top: 0.3rem;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--line);
+  }
+
+  .sub-title {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text2);
+  }
+
+  .sub-excerpt {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+
+  .sub-excerpt :global(mark) {
+    color: var(--text);
+    background: none;
+    font-weight: 600;
+  }
+</style>
