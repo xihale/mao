@@ -7,6 +7,7 @@ const volumes = defineCollection({
     title: z.string(),
     volume: z.number(),
     volumeTitle: z.string(),
+    order: z.number(),
     period: z.string().optional(),
     date: z.string().optional(),
   }),
