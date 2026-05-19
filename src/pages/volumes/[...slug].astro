@@ -136,4 +136,339 @@ const { Content } = await render(article);
   @media (max-width: 767px) {
     .content { font-size: 0.95rem; }
   }
+
+
+  /* 移动端浮动按钮 */
+  .sel-fab {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    color: var(--text);
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (pointer: coarse) {
+    .sel-fab { display: block; }
+  }
 </style>
+
+<script>
+  // ── 相对位置选段分享 ──────────────────────────────────────
+  const ARTICLE_SEL = 'article.content';
+
+  // ── 工具函数 ──
+
+  /** djb2 hash，取低 28 bit，返回 hex */
+  function hashStr(s: string): string {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  /** 从 text 的 offset 位置往前取 n 字符做 hash */
+  function anchor(text: string, offset: number): string {
+    const ctxLen = 32;
+    const start = Math.max(0, offset - ctxLen);
+    const prefix = text.slice(start, offset);
+    return `${offset}:${hashStr(prefix)}`;
+  }
+
+  /** 在当前 text 中根据 anchor 定位 offset，验证 hash */
+  function resolveAnchor(text: string, a: string): number | null {
+    const idx = a.indexOf(':');
+    if (idx < 0) return null;
+    const offset = parseInt(a.slice(0, idx), 10);
+    const expected = a.slice(idx + 1);
+    const ctxLen = 32;
+    const start = Math.max(0, offset - ctxLen);
+    if (hashStr(text.slice(start, offset)) !== expected) return null;
+    return offset;
+  }
+
+  /** 模糊查找：hash 不匹配时，在 offset 附近 ±50 搜索 */
+  function fuzzyResolve(text: string, a: string): number | null {
+    const exact = resolveAnchor(text, a);
+    if (exact !== null) return exact;
+    const idx = a.indexOf(':');
+    if (idx < 0) return null;
+    const origOffset = parseInt(a.slice(0, idx), 10);
+    const expected = a.slice(idx + 1);
+    const ctxLen = 32;
+    const lo = Math.max(0, origOffset - 60);
+    const hi = Math.min(text.length, origOffset + 60);
+    for (let off = lo; off < hi; off++) {
+      const start = Math.max(0, off - ctxLen);
+      if (hashStr(text.slice(start, off)) === expected) return off;
+    }
+    return origOffset; // 兜底返回原始偏移
+  }
+
+  // ── 编码 / 解码 ──
+
+  function encodeSelection(start: number, end: number): string {
+    const raw = `${start}-${end}`;
+    return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodeSelection(hash: string): [number, number] | null {
+    try {
+      const raw = atob(hash.replace(/-/g, '+').replace(/_/g, '/'));
+      const parts = raw.split('-');
+      if (parts.length !== 2) return null;
+      const s = parseInt(parts[0], 10);
+      const e = parseInt(parts[1], 10);
+      if (isNaN(s) || isNaN(e) || s < 0 || e < s) return null;
+      return [s, e];
+    } catch { return null; }
+  }
+
+  // ── DOM ↔ 纯文本偏移 ──
+
+  function getTextOffset(root: Node, node: Node, offset: number): number {
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let charIdx = 0;
+    let n: Text | null;
+    while ((n = tw.nextNode() as Text | null)) {
+      if (n === node) return charIdx + offset;
+      charIdx += n.nodeValue?.length ?? 0;
+    }
+    return charIdx;
+  }
+
+  function setSelectionFromOffsets(root: Node, startOff: number, endOff: number): Range | null {
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let charIdx = 0;
+    let n: Text | null;
+    let startNode: Text | null = null, startOffset = 0;
+    let endNode: Text | null = null, endOffset = 0;
+    while ((n = tw.nextNode() as Text | null)) {
+      const len = n.nodeValue?.length ?? 0;
+      if (!startNode && charIdx + len >= startOff) {
+        startNode = n;
+        startOffset = startOff - charIdx;
+      }
+      if (charIdx + len >= endOff) {
+        endNode = n;
+        endOffset = endOff - charIdx;
+        break;
+      }
+      charIdx += len;
+    }
+    if (!startNode || !endNode) return null;
+    const range = document.createRange();
+    range.setStart(startNode, startOffset);
+    range.setEnd(endNode, endOffset);
+    return range;
+  }
+
+  // ── 高亮 & 滚动 ──
+
+  function highlightRange(range: Range, scroll: boolean = false) {
+    const hl = new Highlight(range);
+    CSS.highlights.set('sel-hl', hl);
+
+    if (scroll) {
+      // 用 getBoundingClientRect 精确计算滚动位置
+      const rect = range.getBoundingClientRect();
+      const targetY = window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+    }
+
+    setTimeout(() => CSS.highlights.delete('sel-hl'), 4000);
+  }
+
+  // ── 复制链接 ──
+
+  function copyLink(start: number, end: number, snippet: string) {
+    const text = getFullText();
+    const a1 = anchor(text, start);
+    const a2 = anchor(text, end);
+    const encoded = encodeSelection(start, end);
+    const url = `${location.origin}${location.pathname}#sel=${encoded}&a=${a1}&b=${a2}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast('已复制');
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('已复制');
+    });
+  }
+
+  function getFullText(): string {
+    const article = document.querySelector(ARTICLE_SEL);
+    return article?.textContent ?? '';
+  }
+
+  function getSelectedSnippet(): string {
+    const sel = window.getSelection();
+    return sel?.toString().trim() ?? '';
+  }
+
+  function getSelectedOffsets(): [number, number] | null {
+    const sel = window.getSelection();
+    const article = document.querySelector(ARTICLE_SEL);
+    if (!sel || sel.isCollapsed || !article || !sel.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    const start = getTextOffset(article, range.startContainer, range.startOffset);
+    const end = getTextOffset(article, range.endContainer, range.endOffset);
+    if (start === end) return null;
+    return [start, end];
+  }
+
+  // ── Toast ──
+
+  function toast(msg: string) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    Object.assign(el.style, {
+      position: 'fixed',
+      bottom: '2rem',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      padding: '8px 20px',
+      borderRadius: '9999px',
+      fontSize: '0.85rem',
+      color: 'var(--text)',
+      background: 'var(--bg2)',
+      border: '1px solid var(--line)',
+      zIndex: '9999',
+      opacity: '0',
+      transition: 'opacity 0.3s',
+      pointerEvents: 'none',
+    });
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.style.opacity = '1');
+    setTimeout(() => {
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, 2000);
+  }
+
+  // ── 桌面端：Ctrl+Shift+C ──
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+      e.preventDefault();
+      const offsets = getSelectedOffsets();
+      if (!offsets) return;
+      const snippet = getSelectedSnippet();
+      copyLink(offsets[0], offsets[1], snippet);
+    }
+  });
+
+  // ── 移动端：浮动按钮 ──
+
+  const fab = document.createElement('button');
+  fab.className = 'sel-fab';
+  fab.textContent = '复制链接';
+  fab.hidden = true;
+  document.body.appendChild(fab);
+
+  let fabVisible = false;
+
+  function showFab() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { hideFab(); return; }
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    fab.style.top = `${rect.top + window.scrollY - 40}px`;
+    fab.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - 50, window.innerWidth - 120))}px`;
+    fab.hidden = false;
+    fabVisible = true;
+  }
+
+  function hideFab() {
+    fab.hidden = true;
+    fabVisible = false;
+  }
+
+  document.addEventListener('selectionchange', () => {
+    // 延迟一帧让浏览器完成选区
+    requestAnimationFrame(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        setTimeout(hideFab, 150);
+      } else {
+        // 仅在 pointer: coarse 时显示（CSS 已控制，JS 也做判断）
+        if (matchMedia('(pointer: coarse)').matches) showFab();
+      }
+    });
+  });
+
+  fab.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const offsets = getSelectedOffsets();
+    if (!offsets) return;
+    const snippet = getSelectedSnippet();
+    copyLink(offsets[0], offsets[1], snippet);
+    hideFab();
+    window.getSelection()?.removeAllRanges();
+  });
+
+  // 点击其他地方隐藏 fab
+  document.addEventListener('touchstart', (e) => {
+    if (fabVisible && e.target !== fab) {
+      setTimeout(hideFab, 200);
+    }
+  }, { passive: true });
+
+  // ── Hash 解析 & 跳转 ──
+
+  function handleHash() {
+    const hash = location.hash.slice(1);
+    if (!hash.startsWith('sel=')) return;
+
+    const params = new URLSearchParams(hash);
+    const encoded = params.get('sel');
+    const a1 = params.get('a');
+    const a2 = params.get('b');
+    if (!encoded) return;
+
+    const article = document.querySelector(ARTICLE_SEL);
+    if (!article) return;
+
+    const sel = decodeSelection(encoded);
+    if (!sel) return;
+    let [start, end] = sel;
+
+    // 有锚点时做模糊校验
+    if (a1 && a2) {
+      const text = article.textContent ?? '';
+      const rs = fuzzyResolve(text, a1);
+      const re = fuzzyResolve(text, a2);
+      if (rs !== null && re !== null) {
+        start = rs;
+        end = re;
+      }
+    }
+
+    const range = setSelectionFromOffsets(article, start, end);
+    if (range) highlightRange(range, true);
+  }
+
+  // 页面加载后处理 hash
+  // 等字体加载完再定位，避免布局偏移导致位置不准
+  if (location.hash.startsWith('#sel=')) {
+    document.fonts.ready.then(() => {
+      // 先跳到顶部，再定位
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => handleHash());
+    });
+  }
+
+  // hashchange
+  window.addEventListener('hashchange', handleHash);
+</script>

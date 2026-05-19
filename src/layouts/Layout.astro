@@ -48,6 +48,11 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
       ::selection { background: #444; color: #fff; }
 
+      ::highlight(sel-hl) {
+        background-color: rgba(212, 208, 200, 0.15);
+        color: inherit;
+      }
+
       .wrap {
         max-width: 720px;
         margin: 0 auto;
