@@ -23,8 +23,6 @@ const { Content } = await render(article);
 ---
 
 <Layout title={article.data.title}>
-  <a href="/" style="font-size:0.82rem;color:var(--text3);">&larr; 目录</a>
-
   <h1 data-pagefind-meta="title" style="font-size:1.5rem;margin:0.8rem 0 0.3rem;">{article.data.title}</h1>
   <p style="font-size:0.82rem;color:var(--text2);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
     {article.data.period && <>{article.data.period}</>}
@@ -79,6 +77,12 @@ const { Content } = await render(article);
 
   .content :global(strong) { font-weight: 600; }
 
+  .content :global(mark.pagefind-highlight) {
+    color: #ffce5e;
+    background: none;
+    font-weight: 600;
+  }
+
   .content :global(sup) { color: var(--text3); font-size: 0.75em; }
 
   .content :global(.footnote-ref) {
@@ -117,6 +121,11 @@ const { Content } = await render(article);
   .content :global(.footnotes .data-footnote-backref) {
     color: var(--text3);
     text-decoration: none;
+    margin-left: 0.4em;
+  }
+
+  .content :global(.footnotes .data-footnote-backref:hover) {
+    color: var(--text2);
   }
 
   .content :global(hr) {
@@ -281,7 +290,7 @@ const { Content } = await render(article);
       window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
     }
 
-    setTimeout(() => CSS.highlights.delete('sel-hl'), 4000);
+    setTimeout(() => CSS.highlights.delete('sel-hl'), 2500);
   }
 
   // ── 复制链接 ──
@@ -469,6 +478,80 @@ const { Content } = await render(article);
     });
   }
 
+  // ── Footnote 平滑跳转 ──
+
+  function smoothScrollTo(target: Element, isRef = false) {
+    const y = target.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.2;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+
+    // 暖色高亮：在深色背景上醒目；持续 2.5s（明显一些、时间长一些）
+    const bg = 'rgba(255, 196, 87, 0.25)';
+    const duration = 2500;
+
+    if (isRef) {
+      // 回跳正文序号：序号本身很小，靠 box-shadow 光晕向外扩散 + 数字变亮，确保一眼可见
+      // id 在 <a> 上（GFM 输出 <sup><a id="fnref-1">1</a></sup>），直接用 target 即可
+      const glow = '0 0 0 4px rgba(255, 196, 87, 0.25)';
+      target.animate(
+        [
+          { backgroundColor: 'transparent', color: 'var(--text3)', boxShadow: 'none' },
+          { backgroundColor: bg, color: '#ffce5e', boxShadow: glow, offset: 0.1 },
+          { backgroundColor: bg, color: '#ffce5e', boxShadow: glow, offset: 0.75 },
+          { backgroundColor: 'transparent', color: 'var(--text3)', boxShadow: 'none' },
+        ],
+        { duration, easing: 'ease-out' },
+      );
+    } else {
+      target.animate(
+        [
+          { backgroundColor: 'transparent' },
+          { backgroundColor: bg, offset: 0.1 },
+          { backgroundColor: bg, offset: 0.75 },
+          { backgroundColor: 'transparent' },
+        ],
+        { duration, easing: 'ease-out' },
+      );
+    }
+  }
+
+  document.querySelector(ARTICLE_SEL)?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    // 跳转到脚注
+    const fnRef = target.closest('a[data-footnote-ref]');
+    if (fnRef) {
+      e.preventDefault();
+      const id = fnRef.getAttribute('href')?.slice(1);
+      if (!id) return;
+      const footnote = document.getElementById(id);
+      if (footnote) smoothScrollTo(footnote);
+      return;
+    }
+    // 跳回正文
+    const backRef = target.closest('a.data-footnote-backref');
+    if (backRef) {
+      e.preventDefault();
+      const id = backRef.getAttribute('href')?.slice(1);
+      if (!id) return;
+      const ref = document.getElementById(id);
+      // 回跳的目标是正文里的上标序号，专门做序号高亮
+      if (ref) smoothScrollTo(ref, true);
+    }
+  });
+
   // hashchange
   window.addEventListener('hashchange', handleHash);
+</script>
+
+<!-- 搜索结果跳转高亮：单独 inline 脚本，避免被 Vite preload 包装影响动态 import -->
+<script type="module" is:inline>
+  if (new URLSearchParams(location.search).getAll('pagefind-highlight').length) {
+    import('/pagefind/pagefind-highlight.js').then(({ default: PagefindHighlight }) => {
+      new PagefindHighlight({
+        addStyles: false,                // 关掉默认黄底黑字，用站点暖色字色
+        highlightParam: 'pagefind-highlight',
+      });
+      document.querySelector('mark.pagefind-highlight')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
 </script>

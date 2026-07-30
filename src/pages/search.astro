@@ -6,7 +6,8 @@ import Layout from '../layouts/Layout.astro';
   <a href="/" style="font-size:0.82rem;color:var(--text3);">&larr; 目录</a>
 
   <div class="search-wrap">
-    <input type="text" id="q" placeholder="搜索文章..." autocomplete="off" autofocus />
+    <input type="text" id="q" placeholder="搜索文章..." autocomplete="off" />
+    <button id="clear" type="button" aria-label="清空" hidden>×</button>
   </div>
 
   <div id="status" class="status"></div>
@@ -16,41 +17,63 @@ import Layout from '../layouts/Layout.astro';
     const input = document.getElementById('q');
     const resultsEl = document.getElementById('results');
     const statusEl = document.getElementById('status');
+    const clearBtn = document.getElementById('clear');
     let timer;
 
     let pagefindSearch;
     try {
       const pf = await import('/pagefind/pagefind.js');
       await pf.init();
+      // 让结果 URL 自动带上 ?pagefind-highlight=词，文章页据此高亮
+      await pf.options({ highlightParam: 'pagefind-highlight' });
       pagefindSearch = (q) => pf.search(q);
     } catch {
       statusEl.textContent = '搜索不可用，请先运行 bun run build';
     }
 
-    async function search(query) {
-      if (!pagefindSearch) return;
-      if (!query.trim()) {
-        resultsEl.innerHTML = '';
-        statusEl.textContent = '';
-        return;
-      }
-      const res = await pagefindSearch(query);
-      const items = await Promise.all(res.results.slice(0, 20).map(r => r.data()));
+    // ── URL ?q= 持久化 ──
+    function getQuery() {
+      return new URLSearchParams(location.search).get('q') ?? '';
+    }
+    function syncURL(q) {
+      const u = new URL(location.href);
+      if (q) u.searchParams.set('q', q);
+      else u.searchParams.delete('q');
+      history.replaceState(null, '', u);
+    }
 
+    // ── 结果缓存：返回/刷新时瞬间还原，不重新搜索 ──
+    const CACHE_KEY = 'pf_search_cache';
+    function loadCache(q) {
+      try {
+        const all = JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}');
+        const entry = all[q];
+        if (!entry || !Array.isArray(entry.items)) return null;
+        return entry;
+      } catch { return null; }
+    }
+    function saveCache(q, items, total) {
+      try {
+        const all = JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}');
+        all[q] = { items, total, ts: Date.now() };
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(all));
+      } catch { /* 配额满或禁用，静默忽略 */ }
+    }
+
+    // 把结果渲染到 DOM（与数据来源无关，缓存 / 实时搜索共用）
+    function renderResults(query, items, total) {
+      clearBtn.hidden = false;
       if (!items.length) {
         resultsEl.innerHTML = '';
         statusEl.textContent = '没有找到「' + query + '」的相关结果';
         return;
       }
-
-      statusEl.textContent = '找到 ' + items.length + ' 个结果';
+      statusEl.textContent = '找到 ' + total + ' 个结果';
       resultsEl.innerHTML = items.map(r => {
-        // r.data() returns: { url, excerpt, meta: { title }, sub_results }
-        const title = r.meta?.title || r.url?.split('/').pop() || r.url || '';
+        const title = r.title || '';
         const url = r.url || '#';
         const excerpt = r.excerpt || '';
-        // Also try sub_results for context
-        const subs = r.sub_results || [];
+        const subs = r.subs || [];
         const extraSections = subs.length > 1
           ? subs.slice(1).map(s => {
               const st = s.title || '';
@@ -70,6 +93,29 @@ import Layout from '../layouts/Layout.astro';
       }).join('');
     }
 
+    async function search(query) {
+      if (!pagefindSearch) return;
+      if (!query.trim()) {
+        resultsEl.innerHTML = '';
+        statusEl.textContent = '';
+        clearBtn.hidden = true;
+        return;
+      }
+      clearBtn.hidden = false;
+      statusEl.textContent = '搜索中…';
+      const res = await pagefindSearch(query);
+      const items = (await Promise.all(res.results.slice(0, 20).map(r => r.data()))).map(r => ({
+        title: r.meta?.title || r.url?.split('/').pop() || r.url || '',
+        url: r.url || '#',
+        excerpt: r.excerpt || '',
+        subs: (r.sub_results || []).map(s => ({ title: s.title || '', excerpt: s.excerpt || '' })),
+      }));
+      const total = res.results.length;
+
+      saveCache(query, items, total);
+      renderResults(query, items, total);
+    }
+
     function esc(s) {
       const d = document.createElement('div');
       d.textContent = s;
@@ -77,16 +123,54 @@ import Layout from '../layouts/Layout.astro';
     }
 
     input.addEventListener('input', () => {
+      syncURL(input.value);
       clearTimeout(timer);
       timer = setTimeout(() => search(input.value), 200);
     });
+
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      syncURL('');
+      search('');
+      input.focus();
+    });
+
+    // ── 初始化：优先用缓存秒还原，否则回退到实时搜索 ──
+    const initialQ = getQuery();
+    if (initialQ) {
+      input.value = initialQ;
+      const cached = loadCache(initialQ);
+      if (cached) {
+        renderResults(initialQ, cached.items, cached.total);
+      } else {
+        search(initialQ);
+      }
+    } else {
+      input.focus();
+    }
   </script>
 </Layout>
 
 <style>
   .search-wrap {
+    position: relative;
     margin: 1.5rem 0 1rem;
   }
+
+  .search-wrap #clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    color: var(--text3);
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    cursor: pointer;
+  }
+  .search-wrap #clear:hover { color: var(--text); }
 
   .search-wrap input {
     width: 100%;
