@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "bunx --bun astro dev",
+    "check": "astro check",
     "build": "bunx --bun astro build && node scripts/pagefind.mjs",
     "build:search": "bunx --bun astro build && node scripts/pagefind.mjs --force",
     "preview": "bunx --bun astro preview",
@@ -15,6 +16,8 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "pagefind": "^1.5.2"
+    "@astrojs/check": "^0.9.10",
+    "pagefind": "^1.5.2",
+    "typescript": "6"
   }
 }

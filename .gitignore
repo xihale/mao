@@ -38,5 +38,8 @@ Thumbs.db
 public/pagefind/
 .pagefind-cache/
 
+# ZCode agent workspace
+.zcode/
+
 # Lock files (commit for reproducible builds)
 # bun.lock is already tracked
