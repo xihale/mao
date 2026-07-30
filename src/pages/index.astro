@@ -25,7 +25,7 @@ const grouped = volumes.map(v => ({
       <p style="font-size:0.85rem;color:var(--text2);">全七卷 · {articles.length} 篇</p>
     </div>
     <a href="/search" class="search-icon" aria-label="搜索">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
@@ -54,8 +54,8 @@ const grouped = volumes.map(v => ({
     color: var(--text2);
     display: flex;
     align-items: center;
-    padding: 0.3rem;
-    border-radius: 4px;
+    padding: 0.5rem;
+    border-radius: 6px;
     transition: color 0.15s;
   }
   .search-icon:hover { color: var(--text); }
