@@ -4,21 +4,30 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "bunx --bun astro dev",
-    "check": "astro check",
+    "check": "astro check && tsc --noEmit -p tsconfig.json && eslint .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "astro check && tsc --noEmit -p tsconfig.json",
     "build": "bunx --bun astro build && bun scripts/pagefind.ts",
     "preview": "bunx --bun astro preview",
     "extract": "bun scripts/extract-epub.ts",
     "fonts:subset": "python3 scripts/subset-font.py",
     "fonts:download": "mkdir -p public/fonts && curl -fsSL -o /tmp/fonts-subset.zip \"https://github.com/xihale/mao/releases/download/fonts/fonts-subset.zip\" && unzip -o /tmp/fonts-subset.zip -d public/fonts"
   },
+
   "dependencies": {
     "@astrojs/rss": "4.0.19",
     "astro": "7.1.6"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.2",
+    "eslint": "^10.8.0",
+    "eslint-plugin-astro": "^3.0.1",
+    "globals": "^17.8.0",
     "pagefind": "^1.5.2",
-    "typescript": "6"
+    "typescript": "6",
+    "typescript-eslint": "^8.65.0"
   }
 }

@@ -51,7 +51,9 @@ function highlight(range: Range, scroll = false) {
       behavior: 'smooth',
     });
   }
-  setTimeout(() => CSS.highlights.delete('sel-hl'), 2500);
+  setTimeout(() => {
+    CSS.highlights.delete('sel-hl');
+  }, 2500);
 }
 
 function flash(el: Element, ref = false) {
@@ -87,15 +89,8 @@ function smoothTo(el: Element, ref = false) {
 }
 
 async function copyText(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.cssText = 'position:fixed;opacity:0';
-  document.body.appendChild(ta);
-  ta.select();
-  const ok = document.execCommand('copy');
-  ta.remove();
-  if (!ok) throw new Error('copy failed');
+  // no execCommand fallback — Clipboard API only (needs secure context)
+  await navigator.clipboard.writeText(text);
 }
 
 function toast(msg: string) {
@@ -107,7 +102,9 @@ function toast(msg: string) {
   el.classList.add('show');
   setTimeout(() => {
     el.classList.remove('show');
-    setTimeout(() => el.remove(), 300);
+    setTimeout(() => {
+      el.remove();
+    }, 300);
   }, 2000);
 }
 
@@ -125,10 +122,10 @@ function selectedOffsets(): [number, number] | null {
 /** Touch hit-test against selection rects (with pad). Cheap — no text walk. */
 function pointInSelection(x: number, y: number, pad = 10): boolean {
   const sel = window.getSelection();
-  if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+  if (!sel?.rangeCount || sel.isCollapsed) return false;
   const range = sel.getRangeAt(0);
   const article = document.querySelector(ARTICLE_SEL);
-  if (!article || !article.contains(range.commonAncestorContainer)) return false;
+  if (!article?.contains(range.commonAncestorContainer)) return false;
   for (const r of range.getClientRects()) {
     if (x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad) {
       return true;
@@ -139,13 +136,17 @@ function pointInSelection(x: number, y: number, pad = 10): boolean {
 
 function copyLink(start: number, end: number) {
   const url = `${location.origin}${location.pathname}#${start}-${end}`;
-  copyText(url)
-    .then(() => toast('已复制'))
-    .catch(() => toast('复制失败'));
+  void copyText(url)
+    .then(() => {
+      toast('已复制');
+    })
+    .catch(() => {
+      toast('复制失败');
+    });
 }
 
 function applyHash() {
-  const m = location.hash.match(/^#(\d+)-(\d+)$/);
+  const m = /^#(\d+)-(\d+)$/.exec(location.hash);
   if (!m) return;
   const start = Number(m[1]);
   const end = Number(m[2]);
@@ -157,7 +158,6 @@ function applyHash() {
 }
 
 export function initArticle() {
-  // Desktop: Alt+C
   document.addEventListener('keydown', (e) => {
     if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
@@ -194,7 +194,9 @@ export function initArticle() {
     pressOffsets = null;
     if (offsets) {
       copyOnce(offsets);
-      navigator.vibrate?.(15);
+      if (typeof navigator.vibrate === 'function') {
+        navigator.vibrate(15);
+      }
     }
   };
 
@@ -205,7 +207,8 @@ export function initArticle() {
       pressOffsets = null;
       if (!isCoarse() || e.touches.length !== 1) return;
 
-      const t = e.touches[0]!;
+      const t = e.touches[0];
+      if (!t) return;
       // Must already have a selection under the finger (not first-press word select)
       const offsets = selectedOffsets();
       if (!offsets || !pointInSelection(t.clientX, t.clientY)) return;
@@ -222,7 +225,8 @@ export function initArticle() {
     'touchmove',
     (e) => {
       if (pressTimer === null || !e.touches.length) return;
-      const t = e.touches[0]!;
+      const t = e.touches[0];
+      if (!t) return;
       if (
         Math.abs(t.clientX - pressX) > MOVE_CANCEL_PX ||
         Math.abs(t.clientY - pressY) > MOVE_CANCEL_PX
@@ -267,24 +271,17 @@ export function initArticle() {
     fireLongPress();
   });
 
-  // Footnotes
   document.querySelector(ARTICLE_SEL)?.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement;
-    const fn = t.closest('a[data-footnote-ref]');
-    if (fn) {
-      e.preventDefault();
-      const id = fn.getAttribute('href')?.slice(1);
-      const el = id && document.getElementById(id);
-      if (el) smoothTo(el);
-      return;
-    }
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    const ref = t.closest('a[data-footnote-ref]');
     const back = t.closest('a.data-footnote-backref');
-    if (back) {
-      e.preventDefault();
-      const id = back.getAttribute('href')?.slice(1);
-      const el = id && document.getElementById(id);
-      if (el) smoothTo(el, true);
-    }
+    const a = ref ?? back;
+    if (!a) return;
+    e.preventDefault();
+    const id = a.getAttribute('href')?.slice(1);
+    const el = id ? document.getElementById(id) : null;
+    if (el) smoothTo(el, !!back);
   });
 
   if (/^#\d+-\d+$/.test(location.hash)) {
@@ -294,4 +291,19 @@ export function initArticle() {
     });
   }
   window.addEventListener('hashchange', applyHash);
+
+  // pagefind highlight param from search results
+  if (new URLSearchParams(location.search).getAll('pagefind-highlight').length) {
+    const url = '/pagefind/pagefind-highlight.js';
+    void import(/* @vite-ignore */ url)
+      .then((m: { default: new (opts: { addStyles: boolean; highlightParam: string }) => void }) => {
+        new m.default({ addStyles: false, highlightParam: 'pagefind-highlight' });
+        document
+          .querySelector('mark.pagefind-highlight')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      })
+      .catch(() => {
+        /* pagefind not built in dev */
+      });
+  }
 }

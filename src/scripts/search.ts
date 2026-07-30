@@ -1,31 +1,55 @@
 /** Pagefind search UI. */
 
-type SearchItem = {
+interface SearchItem {
   title: string;
   url: string;
   excerpt: string;
-  subs: Array<{ title: string; excerpt: string }>;
-};
+  subs: { title: string; excerpt: string }[];
+}
 
-type PagefindApi = {
+interface PagefindSubResult {
+  title?: string;
+  excerpt?: string;
+}
+
+interface PagefindResultData {
+  url?: string;
+  excerpt?: string;
+  meta?: { title?: string };
+  sub_results?: PagefindSubResult[];
+}
+
+interface PagefindApi {
   init: () => Promise<void>;
   options: (opts: { highlightParam: string }) => Promise<void>;
   search: (q: string) => Promise<{
-    results: Array<{ data: () => Promise<Record<string, unknown>> }>;
+    results: { data: () => Promise<PagefindResultData> }[];
   }>;
-};
+}
+
+interface CachePayload {
+  items: SearchItem[];
+  total: number;
+}
 
 const CACHE_PREFIX = 'pf:';
 
-function cacheGet(key: string): { items: SearchItem[]; total: number } | null {
+function isCachePayload(v: unknown): v is CachePayload {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return Array.isArray(o['items']) && typeof o['total'] === 'number';
+}
+
+function cacheGet(key: string): CachePayload | null {
   try {
-    return JSON.parse(sessionStorage.getItem(CACHE_PREFIX + key) ?? 'null');
+    const raw: unknown = JSON.parse(sessionStorage.getItem(CACHE_PREFIX + key) ?? 'null');
+    return isCachePayload(raw) ? raw : null;
   } catch {
     return null;
   }
 }
 
-function cacheSet(key: string, value: { items: SearchItem[]; total: number }) {
+function cacheSet(key: string, value: CachePayload) {
   try {
     sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
   } catch {
@@ -50,12 +74,27 @@ function syncURL(q: string) {
   history.replaceState(null, '', u);
 }
 
+function asString(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
+
 export async function initSearch() {
-  const input = document.getElementById('q') as HTMLInputElement | null;
+  const inputEl = document.getElementById('q');
   const resultsEl = document.getElementById('results');
   const statusEl = document.getElementById('status');
-  const clearBtn = document.getElementById('clear') as HTMLButtonElement | null;
-  if (!input || !resultsEl || !statusEl || !clearBtn) return;
+  const clearEl = document.getElementById('clear');
+  if (
+    !(inputEl instanceof HTMLInputElement) ||
+    !resultsEl ||
+    !statusEl ||
+    !(clearEl instanceof HTMLButtonElement)
+  ) {
+    return;
+  }
+  const input = inputEl;
+  const results = resultsEl;
+  const status = statusEl;
+  const clearBtn = clearEl;
 
   let pagefind: PagefindApi | null = null;
   try {
@@ -66,19 +105,19 @@ export async function initSearch() {
     await pf.options({ highlightParam: 'pagefind-highlight' });
     pagefind = pf;
   } catch {
-    statusEl.textContent = '搜索不可用，请先运行 bun run build';
+    status.textContent = '搜索不可用，请先运行 bun run build';
     return;
   }
 
   function render(query: string, items: SearchItem[], total: number) {
-    clearBtn!.hidden = false;
+    clearBtn.hidden = false;
     if (!items.length) {
-      resultsEl!.innerHTML = '';
-      statusEl!.textContent = `没有找到「${query}」的相关结果`;
+      results.innerHTML = '';
+      status.textContent = `没有找到「${query}」的相关结果`;
       return;
     }
-    statusEl!.textContent = `找到 ${total} 个结果`;
-    resultsEl!.innerHTML = items
+    status.textContent = `找到 ${total} 个结果`;
+    results.innerHTML = items
       .map((r) => {
         const extra =
           r.subs.length > 1
@@ -104,26 +143,32 @@ export async function initSearch() {
   async function search(query: string) {
     if (!pagefind) return;
     if (!query.trim()) {
-      resultsEl!.innerHTML = '';
-      statusEl!.textContent = '';
-      clearBtn!.hidden = true;
+      results.innerHTML = '';
+      status.textContent = '';
+      clearBtn.hidden = true;
       return;
     }
-    clearBtn!.hidden = false;
-    statusEl!.textContent = '搜索中…';
+    clearBtn.hidden = false;
+    status.textContent = '搜索中…';
     const res = await pagefind.search(query);
-    const items: SearchItem[] = (
-      await Promise.all(res.results.slice(0, 20).map((r) => r.data()))
-    ).map((r) => {
-      const meta = r.meta as { title?: string } | undefined;
-      const url = (r.url as string) || '#';
-      const subs = ((r.sub_results as Array<{ title?: string; excerpt?: string }>) || []).map(
-        (s) => ({ title: s.title || '', excerpt: s.excerpt || '' }),
-      );
+    const raw = await Promise.all(
+      res.results.slice(0, 20).map(async (r) => r.data()),
+    );
+    const items: SearchItem[] = raw.map((r) => {
+      const url = asString(r.url, '#');
+      const metaTitle = r.meta?.title;
+      const title =
+        typeof metaTitle === 'string' && metaTitle.length > 0
+          ? metaTitle
+          : (url.split('/').pop() ?? url);
+      const subs = (r.sub_results ?? []).map((s) => ({
+        title: asString(s.title),
+        excerpt: asString(s.excerpt),
+      }));
       return {
-        title: meta?.title || url.split('/').pop() || url,
+        title,
         url,
-        excerpt: (r.excerpt as string) || '',
+        excerpt: asString(r.excerpt),
         subs,
       };
     });
@@ -136,7 +181,9 @@ export async function initSearch() {
   input.addEventListener('input', () => {
     syncURL(input.value);
     clearTimeout(timer);
-    timer = setTimeout(() => void search(input.value), 200);
+    timer = setTimeout(() => {
+      void search(input.value);
+    }, 200);
   });
 
   clearBtn.addEventListener('click', () => {

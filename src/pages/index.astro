@@ -1,13 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getArticlesSorted, VOLUME_LABELS, VOLUME_NUMS } from '../lib/volumes';
+import { articleHref, getArticlesSorted, groupByVolume } from '../lib/volumes';
 
 const articles = await getArticlesSorted();
-const grouped = VOLUME_NUMS.map((v) => ({
-  volume: v,
-  label: VOLUME_LABELS[v],
-  articles: articles.filter((a) => a.data.volume === v),
-}));
+const grouped = groupByVolume(articles);
 ---
 
 <Layout title="目录">
@@ -28,11 +24,11 @@ const grouped = VOLUME_NUMS.map((v) => ({
     <section class="vol">
       <h2>{g.label}</h2>
       <ol>
-        {g.articles.map((article) => (
+        {g.articles.map((a) => (
           <li>
-            <a href={`/${article.data.volume}/${article.data.order}`}>
-              <span>{article.data.title}</span>
-              {article.data.date && <time>{article.data.date}</time>}
+            <a href={articleHref(a)}>
+              <span>{a.data.title}</span>
+              {a.data.date && <time>{a.data.date}</time>}
             </a>
           </li>
         ))}

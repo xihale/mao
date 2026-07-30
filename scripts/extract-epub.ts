@@ -27,12 +27,12 @@ interface Nav {
 interface Volume {
   title: string;
   num: number;
-  periods: Array<{
+  periods: {
     title: string;
     src: string;
-    articles: Array<{ title: string; src: string }>;
+    articles: { title: string; src: string }[];
     isPreface: boolean;
-  }>;
+  }[];
 }
 
 function resolveOebps(input?: string): string {
@@ -65,7 +65,9 @@ function parseNavPoints(xml: string): Nav[] {
     const tag = m[0];
     if (tag.startsWith('<navPoint')) {
       current = { title: '', src: '', children: [] };
-      stack[stack.length - 1]!.push(current);
+      const top = stack[stack.length - 1];
+      if (!top) throw new Error('navPoint stack empty');
+      top.push(current);
       stack.push(current.children);
     } else if (m[1] !== undefined && current) {
       current.title = m[1];
@@ -81,7 +83,7 @@ function parseNavPoints(xml: string): Nav[] {
 }
 
 function volNum(title: string): number {
-  const m = title.match(/第(.+?)卷/);
+  const m = /第(.+?)卷/.exec(title);
   if (!m?.[1]) return 0;
   return CN_NUM[m[1]] ?? (parseInt(m[1], 10) || 0);
 }
@@ -139,10 +141,10 @@ function xhtmlToMd(
   order: number,
 ): string {
   const html = readFileSync(filePath, 'utf-8');
-  const dateMatch = html.match(/<span class="f2">([^<]+)<\/span>/);
+  const dateMatch = /<span class="f2">([^<]+)<\/span>/.exec(html);
   const date = dateMatch?.[1]?.replace(/[（）]/g, '').trim() ?? null;
 
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/.exec(html);
   if (!bodyMatch?.[1]) return '';
 
   let body = bodyMatch[1]
@@ -150,8 +152,8 @@ function xhtmlToMd(
     .replace(/<p class="a0"[^>]*>[\s\S]*?<\/p>/g, '');
 
   body = body.replace(/<p class="zs"[^>]*>([\s\S]*?)<\/p>/g, (_m: string, content: string) => {
-    const numMatch = content.match(/<a[^>]*>([※＊*]?\s*〔(\d+)〕\s*)<\/a>/);
-    const starMatch = content.match(/<a[^>]*>(\s*\*\s*)<\/a>/);
+    const numMatch = /<a[^>]*>([※＊*]?\s*〔(\d+)〕\s*)<\/a>/.exec(content);
+    const starMatch = /<a[^>]*>(\s*\*\s*)<\/a>/.exec(content);
     if (numMatch?.[2]) {
       return `\n[^${numMatch[2]}]: ${cleanHtml(content.replace(/<a[^>]*>[^<]*<\/a>/, '')).trim()}\n`;
     }

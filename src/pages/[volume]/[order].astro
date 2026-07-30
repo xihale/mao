@@ -1,16 +1,16 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { render } from 'astro:content';
-import { getArticlesSorted, type Article } from '../../lib/volumes';
+import { articleHref, getArticlesSorted, type Article } from '../../lib/volumes';
 
 export async function getStaticPaths() {
-  const sorted = await getArticlesSorted();
-  return sorted.map((article, idx) => ({
+  const articles = await getArticlesSorted();
+  return articles.map((article, i) => ({
     params: { volume: String(article.data.volume), order: String(article.data.order) },
     props: {
       article,
-      prev: idx > 0 ? sorted[idx - 1] : null,
-      next: idx < sorted.length - 1 ? sorted[idx + 1] : null,
+      prev: articles[i - 1] ?? null,
+      next: articles[i + 1] ?? null,
     },
   }));
 }
@@ -23,7 +23,6 @@ interface Props {
 
 const { article, prev, next } = Astro.props;
 const { Content } = await render(article);
-
 const meta = [article.data.period, article.data.date].filter(Boolean).join(' · ');
 ---
 
@@ -36,12 +35,15 @@ const meta = [article.data.period, article.data.date].filter(Boolean).join(' · 
   </article>
 
   <nav class="pager">
-    {prev
-      ? <a href={`/${prev.data.volume}/${prev.data.order}`}>&larr; {prev.data.title}</a>
-      : <span />}
-    {next && <a href={`/${next.data.volume}/${next.data.order}`}>{next.data.title} &rarr;</a>}
+    {prev ? <a href={articleHref(prev)}>&larr; {prev.data.title}</a> : <span />}
+    {next && <a href={articleHref(next)}>{next.data.title} &rarr;</a>}
   </nav>
 </Layout>
+
+<script>
+  import { initArticle } from '../../scripts/article';
+  initArticle();
+</script>
 
 <style>
   h1 {
@@ -152,38 +154,4 @@ const meta = [article.data.period, article.data.date].filter(Boolean).join(' · 
     .content { font-size: 1.12rem; }
     h1 { font-size: 1.4rem; }
   }
-
-  /* Dynamically created on document.body — must be :global */
-  :global(.toast) {
-    position: fixed;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 8px 20px;
-    border-radius: 9999px;
-    font-size: 0.85rem;
-    color: var(--text);
-    background: var(--bg2);
-    border: 1px solid var(--line);
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-  }
-  :global(.toast.show) { opacity: 1; }
 </style>
-
-<script>
-  import { initArticle } from '../../scripts/article';
-  initArticle();
-</script>
-
-<script type="module" is:inline>
-  if (new URLSearchParams(location.search).getAll('pagefind-highlight').length) {
-    import('/pagefind/pagefind-highlight.js').then(({ default: PagefindHighlight }) => {
-      new PagefindHighlight({ addStyles: false, highlightParam: 'pagefind-highlight' });
-      document.querySelector('mark.pagefind-highlight')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  }
-</script>
