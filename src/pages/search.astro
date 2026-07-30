@@ -42,25 +42,8 @@ import Layout from '../layouts/Layout.astro';
       history.replaceState(null, '', u);
     }
 
-    // ── 结果缓存：返回/刷新时瞬间还原，不重新搜索 ──
-    const CACHE_KEY = 'pf_search_cache';
-    function loadCache(q) {
-      try {
-        const all = JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}');
-        const entry = all[q];
-        if (!entry || !Array.isArray(entry.items)) return null;
-        return entry;
-      } catch { return null; }
-    }
-    function saveCache(q, items, total) {
-      try {
-        const all = JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}');
-        all[q] = { items, total, ts: Date.now() };
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(all));
-      } catch { /* 配额满或禁用，静默忽略 */ }
-    }
-
-    // 把结果渲染到 DOM（与数据来源无关，缓存 / 实时搜索共用）
+    // ── 结果缓存：点进文章后返回时瞬间还原，避免重新搜索的闪烁 ──
+    const cache = new Map();
     function renderResults(query, items, total) {
       clearBtn.hidden = false;
       if (!items.length) {
@@ -112,7 +95,7 @@ import Layout from '../layouts/Layout.astro';
       }));
       const total = res.results.length;
 
-      saveCache(query, items, total);
+      cache.set(query, { items, total });
       renderResults(query, items, total);
     }
 
@@ -135,16 +118,13 @@ import Layout from '../layouts/Layout.astro';
       input.focus();
     });
 
-    // ── 初始化：优先用缓存秒还原，否则回退到实时搜索 ──
+    // ── 初始化：URL ?q= 还原查询；同一会话内（返回时）用内存缓存瞬间还原 ──
     const initialQ = getQuery();
     if (initialQ) {
       input.value = initialQ;
-      const cached = loadCache(initialQ);
-      if (cached) {
-        renderResults(initialQ, cached.items, cached.total);
-      } else {
-        search(initialQ);
-      }
+      const cached = cache.get(initialQ);
+      if (cached) renderResults(initialQ, cached.items, cached.total);
+      else search(initialQ);
     } else {
       input.focus();
     }

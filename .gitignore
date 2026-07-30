@@ -40,7 +40,6 @@ Thumbs.db
 
 # Pagefind (build artifact)
 public/pagefind/
-.pagefind-cache/
 
 # ZCode agent workspace
 .zcode/
