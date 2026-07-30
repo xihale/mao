@@ -177,14 +177,13 @@ const { Content } = await render(article);
   // ── DOM ↔ 纯文本偏移 ──
 
   function getTextOffset(root: Node, node: Node, offset: number): number {
-    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let charIdx = 0;
-    let n: Text | null;
-    while ((n = tw.nextNode() as Text | null)) {
-      if (n === node) return charIdx + offset;
-      charIdx += n.nodeValue?.length ?? 0;
-    }
-    return charIdx;
+    // 用 Range 纯文本长度计算偏移：端点可能落在 Text（字符偏移，如拖选/双击）
+    // 或 Element（子节点偏移，如三击选段）上，Range.toString() 对两者都给出正确的
+    // 「从 root 起点到该端点的字符数」，并与回写 setSelectionFromOffsets 文本遍历对称。
+    const range = document.createRange();
+    range.setStart(root, 0);
+    range.setEnd(node, offset);
+    return range.toString().length;
   }
 
   function setSelectionFromOffsets(root: Node, startOff: number, endOff: number): Range | null {
