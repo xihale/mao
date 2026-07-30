@@ -43,7 +43,11 @@ import Layout from '../layouts/Layout.astro';
     }
 
     // ── 结果缓存：点进文章后返回时瞬间还原，避免重新搜索的闪烁 ──
-    const cache = new Map();
+    // sessionStorage（非内存 Map）：跨「进文章→返回」的页面重载存活，Map 会丢失。
+    const cache = {
+      get(k) { try { return JSON.parse(sessionStorage.getItem('pf:' + k)); } catch { return null; } },
+      set(k, v) { try { sessionStorage.setItem('pf:' + k, JSON.stringify(v)); } catch {} },
+    };
     function renderResults(query, items, total) {
       clearBtn.hidden = false;
       if (!items.length) {
@@ -118,7 +122,7 @@ import Layout from '../layouts/Layout.astro';
       input.focus();
     });
 
-    // ── 初始化：URL ?q= 还原查询；同一会话内（返回时）用内存缓存瞬间还原 ──
+    // ── 初始化：URL ?q= 还原查询 ──
     const initialQ = getQuery();
     if (initialQ) {
       input.value = initialQ;

@@ -424,7 +424,7 @@ const { Content } = await render(article);
   const LONG_PRESS_MS = 480;
   const MOVE_CANCEL_PX = 14;
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
-  let pressOffsets: [number, number] | null = null;  // touchstart 时已有的选区；null = 非长按复制手势
+  let pressOffsets: [number, number] | null = null;
   let pressX = 0;
   let pressY = 0;
   let lastCopyAt = 0;
@@ -538,7 +538,7 @@ const { Content } = await render(article);
   if (new URLSearchParams(location.search).getAll('pagefind-highlight').length) {
     import('/pagefind/pagefind-highlight.js').then(({ default: PagefindHighlight }) => {
       new PagefindHighlight({
-        addStyles: false,                // 关掉默认黄底黑字，用站点暖色字色
+        addStyles: false,                // 用站点暖色字色，不用默认黄底黑字
         highlightParam: 'pagefind-highlight',
       });
       document.querySelector('mark.pagefind-highlight')
