@@ -38,7 +38,7 @@ const grouped = volumes.map(v => ({
       <ol style="list-style:none;padding:0;">
         {g.articles.map(article => (
           <li>
-            <a href={`/volumes/${article.id}`} style="display:flex;justify-content:space-between;align-items:baseline;gap:0.75rem;padding:0.35rem 0;">
+            <a href={`/${article.data.volume}/${article.data.order}`} style="display:flex;justify-content:space-between;align-items:baseline;gap:0.75rem;padding:0.35rem 0;">
               <span>{article.data.title}</span>
               {article.data.date && <span style="font-size:0.7rem;color:var(--text3);white-space:nowrap;">{article.data.date}</span>}
             </a>

@@ -9,7 +9,7 @@ export async function getStaticPaths() {
     return a.data.order - b.data.order;
   });
   return sorted.map((article, idx) => ({
-    params: { slug: article.id },
+    params: { volume: String(article.data.volume), order: String(article.data.order) },
     props: {
       article,
       prev: idx > 0 ? sorted[idx - 1] : null,
@@ -35,9 +35,9 @@ const { Content } = await render(article);
   </article>
 
   <nav style="display:flex;justify-content:space-between;margin-top:3rem;gap:1rem;">
-    {prev && <a href={`/volumes/${prev.id}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
+    {prev && <a href={`/${prev.data.volume}/${prev.data.order}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
     {!prev && <span />}
-    {next && <a href={`/volumes/${next.id}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
+    {next && <a href={`/${next.data.volume}/${next.data.order}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
   </nav>
 </Layout>
 

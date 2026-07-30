@@ -16,7 +16,7 @@ export async function GET(context: APIContext) {
     items: sorted.map(article => ({
       title: article.data.title,
       pubDate: article.data.date ? parseDate(article.data.date) : undefined,
-      link: `/volumes/${article.id}`,
+      link: `/${article.data.volume}/${article.data.order}`,
       categories: [article.data.volumeTitle],
     })),
     customData: '<language>zh-CN</language>',
