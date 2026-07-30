@@ -170,73 +170,9 @@ const { Content } = await render(article);
 
 <script>
   // ── 相对位置选段分享 ──────────────────────────────────────
+  // 用纯文本偏移 [start,end] 定位，hash 格式 #start-end（如 #234-567）。
+  // 正文为固定历史文本，不存编辑偏移，故无需容错锚点。
   const ARTICLE_SEL = 'article.content';
-
-  // ── 工具函数 ──
-
-  /** djb2 hash，取低 28 bit，返回 hex */
-  function hashStr(s: string): string {
-    let h = 5381;
-    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-    return (h >>> 0).toString(16).padStart(8, '0');
-  }
-
-  /** 从 text 的 offset 位置往前取 n 字符做 hash */
-  function anchor(text: string, offset: number): string {
-    const ctxLen = 32;
-    const start = Math.max(0, offset - ctxLen);
-    const prefix = text.slice(start, offset);
-    return `${offset}:${hashStr(prefix)}`;
-  }
-
-  /** 在当前 text 中根据 anchor 定位 offset，验证 hash */
-  function resolveAnchor(text: string, a: string): number | null {
-    const idx = a.indexOf(':');
-    if (idx < 0) return null;
-    const offset = parseInt(a.slice(0, idx), 10);
-    const expected = a.slice(idx + 1);
-    const ctxLen = 32;
-    const start = Math.max(0, offset - ctxLen);
-    if (hashStr(text.slice(start, offset)) !== expected) return null;
-    return offset;
-  }
-
-  /** 模糊查找：hash 不匹配时，在 offset 附近 ±50 搜索 */
-  function fuzzyResolve(text: string, a: string): number | null {
-    const exact = resolveAnchor(text, a);
-    if (exact !== null) return exact;
-    const idx = a.indexOf(':');
-    if (idx < 0) return null;
-    const origOffset = parseInt(a.slice(0, idx), 10);
-    const expected = a.slice(idx + 1);
-    const ctxLen = 32;
-    const lo = Math.max(0, origOffset - 60);
-    const hi = Math.min(text.length, origOffset + 60);
-    for (let off = lo; off < hi; off++) {
-      const start = Math.max(0, off - ctxLen);
-      if (hashStr(text.slice(start, off)) === expected) return off;
-    }
-    return origOffset; // 兜底返回原始偏移
-  }
-
-  // ── 编码 / 解码 ──
-
-  function encodeSelection(start: number, end: number): string {
-    const raw = `${start}-${end}`;
-    return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  function decodeSelection(hash: string): [number, number] | null {
-    try {
-      const raw = atob(hash.replace(/-/g, '+').replace(/_/g, '/'));
-      const parts = raw.split('-');
-      if (parts.length !== 2) return null;
-      const s = parseInt(parts[0], 10);
-      const e = parseInt(parts[1], 10);
-      if (isNaN(s) || isNaN(e) || s < 0 || e < s) return null;
-      return [s, e];
-    } catch { return null; }
-  }
 
   // ── DOM ↔ 纯文本偏移 ──
 
@@ -296,12 +232,7 @@ const { Content } = await render(article);
   // ── 复制链接 ──
 
   function copyLink(start: number, end: number) {
-    const article = document.querySelector(ARTICLE_SEL);
-    const text = article?.textContent ?? '';
-    const a1 = anchor(text, start);
-    const a2 = anchor(text, end);
-    const encoded = encodeSelection(start, end);
-    const url = `${location.origin}${location.pathname}#sel=${encoded}&a=${a1}&b=${a2}`;
+    const url = `${location.origin}${location.pathname}#${start}-${end}`;
     navigator.clipboard.writeText(url).then(() => {
       toast('已复制');
     }).catch(() => {
@@ -533,32 +464,16 @@ const { Content } = await render(article);
   // ── Hash 解析 & 跳转 ──
 
   function handleHash() {
-    const hash = location.hash.slice(1);
-    if (!hash.startsWith('sel=')) return;
+    // 匹配 #start-end，如 #234-567
+    const m = location.hash.match(/^#(\d+)-(\d+)$/);
+    if (!m) return;
 
-    const params = new URLSearchParams(hash);
-    const encoded = params.get('sel');
-    const a1 = params.get('a');
-    const a2 = params.get('b');
-    if (!encoded) return;
+    const start = parseInt(m[1], 10);
+    const end = parseInt(m[2], 10);
+    if (end <= start) return;
 
     const article = document.querySelector(ARTICLE_SEL);
     if (!article) return;
-
-    const sel = decodeSelection(encoded);
-    if (!sel) return;
-    let [start, end] = sel;
-
-    // 有锚点时做模糊校验
-    if (a1 && a2) {
-      const text = article.textContent ?? '';
-      const rs = fuzzyResolve(text, a1);
-      const re = fuzzyResolve(text, a2);
-      if (rs !== null && re !== null) {
-        start = rs;
-        end = re;
-      }
-    }
 
     const range = setSelectionFromOffsets(article, start, end);
     if (range) highlightRange(range, true);
@@ -566,7 +481,7 @@ const { Content } = await render(article);
 
   // 页面加载后处理 hash
   // 等字体加载完再定位，避免布局偏移导致位置不准
-  if (location.hash.startsWith('#sel=')) {
+  if (location.hash.match(/^#\d+-\d+$/)) {
     document.fonts.ready.then(() => {
       // 先跳到顶部，再定位
       window.scrollTo(0, 0);
