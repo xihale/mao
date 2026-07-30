@@ -3,8 +3,6 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="搜索">
-  <a href="/" class="back">&larr; 目录</a>
-
   <div class="search-wrap">
     <input type="text" id="q" placeholder="搜索文章..." autocomplete="off" />
     <button id="clear" type="button" aria-label="清空" hidden>×</button>
@@ -28,19 +26,23 @@ import Layout from '../layouts/Layout.astro';
   }
   .search-wrap input {
     width: 100%;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid var(--line);
-    border-radius: 4px;
+    padding: 0.55rem 1.75rem 0.55rem 0;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
     font-family: var(--serif);
     font-size: 0.85rem;
-    background: var(--bg2);
+    background: transparent;
     color: var(--text);
   }
   .search-wrap input::placeholder { color: var(--text3); }
-  .search-wrap input:focus { outline: none; border-color: #444; }
+  .search-wrap input:focus {
+    outline: none;
+    border-bottom-color: #444;
+  }
   .search-wrap #clear {
     position: absolute;
-    right: 0.5rem;
+    right: 0;
     top: 50%;
     transform: translateY(-50%);
     border: none;
@@ -48,7 +50,7 @@ import Layout from '../layouts/Layout.astro';
     color: var(--text3);
     font-size: 1.05rem;
     line-height: 1;
-    padding: 0.2rem 0.4rem;
+    padding: 0.2rem 0.1rem;
     cursor: pointer;
   }
   .search-wrap #clear:hover { color: var(--text); }

@@ -7,7 +7,6 @@ import globals from 'globals';
 export default defineConfig(
   globalIgnores([
     'dist/**',
-    'public/pagefind/**',
     'node_modules/**',
     '.astro/**',
     'build/**',

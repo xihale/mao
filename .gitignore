@@ -27,8 +27,5 @@ public/fonts/
 .tmp/
 .temp/
 
-# Pagefind (build artifact)
-public/pagefind/
-
 # ZCode agent workspace
 .zcode/

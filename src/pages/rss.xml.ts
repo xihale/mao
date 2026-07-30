@@ -9,7 +9,7 @@ export async function GET(context: APIContext) {
 
   return rss({
     title: '毛泽东选集',
-    description: '毛泽东选集全七卷在线阅读',
+    description: '毛泽东选集汇总',
     site,
     items: articles.map((a) => ({
       title: a.data.title,

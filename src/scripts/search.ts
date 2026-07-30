@@ -98,7 +98,7 @@ export async function initSearch() {
 
   let pagefind: PagefindApi | null = null;
   try {
-    // pagefind is a build artifact at /pagefind/*, not a package
+    // path must be a variable so Vite does not resolve it as a /public module id
     const url = '/pagefind/pagefind.js';
     const pf = (await import(/* @vite-ignore */ url)) as PagefindApi;
     await pf.init();
