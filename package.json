@@ -9,8 +9,8 @@
     "extract": "bun run extract-epub.mjs"
   },
   "dependencies": {
-    "@astrojs/rss": "^4.0.18",
-    "astro": "^5.7.10",
+    "@astrojs/rss": "4.0.19",
+    "astro": "7.1.6",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
