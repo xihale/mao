@@ -73,7 +73,7 @@ export default defineConfig(
   },
 
   {
-    files: ['scripts/**/*.{ts,js}', 'astro.config.ts'],
+    files: ['astro.config.ts'],
     languageOptions: { globals: globals.node },
   },
 

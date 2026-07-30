@@ -8,10 +8,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "astro check && tsc --noEmit -p tsconfig.json",
-    "build": "bunx --bun astro build && bun scripts/pagefind.ts",
+    "build": "bunx --bun astro build && bunx pagefind --site dist",
     "preview": "bunx --bun astro preview",
-    "extract": "bun scripts/extract-epub.ts",
-    "fonts:subset": "python3 scripts/subset-font.py",
     "fonts:download": "mkdir -p public/fonts && curl -fsSL -o /tmp/fonts-subset.zip \"https://github.com/xihale/mao/releases/download/fonts/fonts-subset.zip\" && unzip -o /tmp/fonts-subset.zip -d public/fonts"
   },
 
