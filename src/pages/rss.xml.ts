@@ -1,21 +1,17 @@
 import rss from '@astrojs/rss';
-import { getCollection } from 'astro:content';
 import type { APIContext } from 'astro';
+import { getArticlesSorted } from '../lib/volumes';
 
 export async function GET(context: APIContext) {
-  const articles = await getCollection('volumes');
-  const sorted = articles.sort((a, b) => {
-    if (a.data.volume !== b.data.volume) return a.data.volume - b.data.volume;
-    return a.data.order - b.data.order;
-  });
+  const articles = await getArticlesSorted();
 
   return rss({
     title: '毛泽东选集',
     description: '毛泽东选集全七卷在线阅读',
     site: context.site!,
-    items: sorted.map(article => ({
+    items: articles.map((article) => ({
       title: article.data.title,
-      pubDate: article.data.date ? parseDate(article.data.date) : undefined,
+      pubDate: article.data.date ? parseYear(article.data.date) : undefined,
       link: `/${article.data.volume}/${article.data.order}`,
       categories: [article.data.volumeTitle],
     })),
@@ -23,7 +19,7 @@ export async function GET(context: APIContext) {
   });
 }
 
-function parseDate(dateStr: string): Date | undefined {
+function parseYear(dateStr: string): Date | undefined {
   const m = dateStr.match(/(\d{4})/);
-  return m ? new Date(`${m[1]}-01-01`) : undefined;
+  return m?.[1] ? new Date(`${m[1]}-01-01`) : undefined;
 }

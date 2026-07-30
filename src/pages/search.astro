@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="搜索">
-  <a href="/" style="font-size:0.75rem;color:var(--text3);">&larr; 目录</a>
+  <a href="/" class="back">&larr; 目录</a>
 
   <div class="search-wrap">
     <input type="text" id="q" placeholder="搜索文章..." autocomplete="off" />
@@ -12,130 +12,16 @@ import Layout from '../layouts/Layout.astro';
 
   <div id="status" class="status"></div>
   <div id="results" class="results"></div>
-
-  <script type="module" is:inline>
-    const input = document.getElementById('q');
-    const resultsEl = document.getElementById('results');
-    const statusEl = document.getElementById('status');
-    const clearBtn = document.getElementById('clear');
-    let timer;
-
-    let pagefindSearch;
-    try {
-      const pf = await import('/pagefind/pagefind.js');
-      await pf.init();
-      // 让结果 URL 自动带上 ?pagefind-highlight=词，文章页据此高亮
-      await pf.options({ highlightParam: 'pagefind-highlight' });
-      pagefindSearch = (q) => pf.search(q);
-    } catch {
-      statusEl.textContent = '搜索不可用，请先运行 bun run build';
-    }
-
-    // ── URL ?q= 持久化 ──
-    function getQuery() {
-      return new URLSearchParams(location.search).get('q') ?? '';
-    }
-    function syncURL(q) {
-      const u = new URL(location.href);
-      if (q) u.searchParams.set('q', q);
-      else u.searchParams.delete('q');
-      history.replaceState(null, '', u);
-    }
-
-    // ── 结果缓存：点进文章后返回时瞬间还原，避免重新搜索的闪烁 ──
-    // sessionStorage（非内存 Map）：跨「进文章→返回」的页面重载存活，Map 会丢失。
-    const cache = {
-      get(k) { try { return JSON.parse(sessionStorage.getItem('pf:' + k)); } catch { return null; } },
-      set(k, v) { try { sessionStorage.setItem('pf:' + k, JSON.stringify(v)); } catch {} },
-    };
-    function renderResults(query, items, total) {
-      clearBtn.hidden = false;
-      if (!items.length) {
-        resultsEl.innerHTML = '';
-        statusEl.textContent = '没有找到「' + query + '」的相关结果';
-        return;
-      }
-      statusEl.textContent = '找到 ' + total + ' 个结果';
-      resultsEl.innerHTML = items.map(r => {
-        const title = r.title || '';
-        const url = r.url || '#';
-        const excerpt = r.excerpt || '';
-        const subs = r.subs || [];
-        const extraSections = subs.length > 1
-          ? subs.slice(1).map(s => {
-              const st = s.title || '';
-              const se = s.excerpt || '';
-              return `<div class="sub-result">
-                ${st ? `<span class="sub-title">${esc(st)}</span>` : ''}
-                ${se ? `<span class="sub-excerpt">${se}</span>` : ''}
-              </div>`;
-            }).join('')
-          : '';
-
-        return `<a href="${url}" class="result-card">
-          <div class="result-title">${esc(title)}</div>
-          ${excerpt ? `<div class="result-excerpt">${excerpt}</div>` : ''}
-          ${extraSections}
-        </a>`;
-      }).join('');
-    }
-
-    async function search(query) {
-      if (!pagefindSearch) return;
-      if (!query.trim()) {
-        resultsEl.innerHTML = '';
-        statusEl.textContent = '';
-        clearBtn.hidden = true;
-        return;
-      }
-      clearBtn.hidden = false;
-      statusEl.textContent = '搜索中…';
-      const res = await pagefindSearch(query);
-      const items = (await Promise.all(res.results.slice(0, 20).map(r => r.data()))).map(r => ({
-        title: r.meta?.title || r.url?.split('/').pop() || r.url || '',
-        url: r.url || '#',
-        excerpt: r.excerpt || '',
-        subs: (r.sub_results || []).map(s => ({ title: s.title || '', excerpt: s.excerpt || '' })),
-      }));
-      const total = res.results.length;
-
-      cache.set(query, { items, total });
-      renderResults(query, items, total);
-    }
-
-    function esc(s) {
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    }
-
-    input.addEventListener('input', () => {
-      syncURL(input.value);
-      clearTimeout(timer);
-      timer = setTimeout(() => search(input.value), 200);
-    });
-
-    clearBtn.addEventListener('click', () => {
-      input.value = '';
-      syncURL('');
-      search('');
-      input.focus();
-    });
-
-    // ── 初始化：URL ?q= 还原查询 ──
-    const initialQ = getQuery();
-    if (initialQ) {
-      input.value = initialQ;
-      const cached = cache.get(initialQ);
-      if (cached) renderResults(initialQ, cached.items, cached.total);
-      else search(initialQ);
-    } else {
-      input.focus();
-    }
-  </script>
 </Layout>
 
+<script>
+  import { initSearch } from '../scripts/search';
+  void initSearch();
+</script>
+
 <style>
+  .back { font-size: 0.75rem; color: var(--text3); }
+
   .search-wrap {
     position: relative;
     margin: 1.5rem 0 1rem;
@@ -166,7 +52,6 @@ import Layout from '../layouts/Layout.astro';
     background: var(--bg2);
     color: var(--text);
   }
-
   .search-wrap input::placeholder { color: var(--text3); }
   .search-wrap input:focus { outline: none; border-color: #444; }
 
@@ -189,10 +74,7 @@ import Layout from '../layouts/Layout.astro';
     border-radius: 4px;
     background: var(--bg2);
   }
-
-  .result-card:hover {
-    border-color: #444;
-  }
+  .result-card:hover { border-color: #444; }
 
   .result-title {
     font-size: 0.85rem;
@@ -205,7 +87,6 @@ import Layout from '../layouts/Layout.astro';
     color: var(--text3);
     line-height: 1.45;
   }
-
   .result-excerpt :global(mark) {
     color: var(--text);
     background: none;
@@ -217,20 +98,17 @@ import Layout from '../layouts/Layout.astro';
     padding-left: 0.75rem;
     border-left: 2px solid var(--line);
   }
-
   .sub-title {
     display: block;
     font-size: 0.75rem;
     color: var(--text2);
   }
-
   .sub-excerpt {
     display: block;
     font-size: 0.7rem;
     color: var(--text3);
     line-height: 1.4;
   }
-
   .sub-excerpt :global(mark) {
     color: var(--text);
     background: none;

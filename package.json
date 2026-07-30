@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "bunx --bun astro dev",
     "check": "astro check",
-    "build": "bunx --bun astro build && node scripts/pagefind.mjs",
+    "build": "bunx --bun astro build && bun scripts/pagefind.ts",
     "preview": "bunx --bun astro preview",
-    "extract": "bun run extract-epub.mjs",
+    "extract": "bun scripts/extract-epub.ts",
     "fonts:subset": "python3 scripts/subset-font.py",
     "fonts:download": "mkdir -p public/fonts && curl -fsSL -o /tmp/fonts-subset.zip \"https://github.com/xihale/mao/releases/download/fonts/fonts-subset.zip\" && unzip -o /tmp/fonts-subset.zip -d public/fonts"
   },
@@ -17,8 +17,8 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.1.2",
     "pagefind": "^1.5.2",
-    "typescript": "6",
-    "xml2js": "^0.6.2"
+    "typescript": "6"
   }
 }

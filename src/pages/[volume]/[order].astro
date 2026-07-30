@@ -1,13 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCollection, render } from 'astro:content';
+import { render } from 'astro:content';
+import { getArticlesSorted, type Article } from '../../lib/volumes';
 
 export async function getStaticPaths() {
-  const articles = await getCollection('volumes');
-  const sorted = articles.sort((a, b) => {
-    if (a.data.volume !== b.data.volume) return a.data.volume - b.data.volume;
-    return a.data.order - b.data.order;
-  });
+  const sorted = await getArticlesSorted();
   return sorted.map((article, idx) => ({
     params: { volume: String(article.data.volume), order: String(article.data.order) },
     props: {
@@ -18,80 +15,101 @@ export async function getStaticPaths() {
   }));
 }
 
+interface Props {
+  article: Article;
+  prev: Article | null;
+  next: Article | null;
+}
+
 const { article, prev, next } = Astro.props;
 const { Content } = await render(article);
+
+const meta = [article.data.period, article.data.date].filter(Boolean).join(' · ');
 ---
 
 <Layout title={article.data.title}>
-  <h1 data-pagefind-meta="title" style="font-size:1.3rem;margin:0.8rem 0 0.3rem;">{article.data.title}</h1>
-  <p style="font-size:0.75rem;color:var(--text2);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
-    {article.data.period && <>{article.data.period}</>}
-    {article.data.period && article.data.date && <> · </>}
-    {article.data.date && <>{article.data.date}</>}
-  </p>
+  <h1 data-pagefind-meta="title">{article.data.title}</h1>
+  {meta && <p class="meta">{meta}</p>}
 
   <article class="content" data-pagefind-body>
     <Content />
   </article>
 
-  <nav style="display:flex;justify-content:space-between;margin-top:3rem;gap:1rem;">
-    {prev && <a href={`/${prev.data.volume}/${prev.data.order}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
-    {!prev && <span />}
-    {next && <a href={`/${next.data.volume}/${next.data.order}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
+  <nav class="pager">
+    {prev
+      ? <a href={`/${prev.data.volume}/${prev.data.order}`}>&larr; {prev.data.title}</a>
+      : <span />}
+    {next && <a href={`/${next.data.volume}/${next.data.order}`}>{next.data.title} &rarr;</a>}
   </nav>
 </Layout>
 
 <style>
+  h1 {
+    font-size: 1.3rem;
+    margin: 0.8rem 0 0.3rem;
+  }
+  .meta {
+    font-size: 0.75rem;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .pager {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3rem;
+    gap: 1rem;
+  }
+  .pager a {
+    font-size: 0.78rem;
+    color: var(--text2);
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .content {
     line-height: 1.55;
     font-size: 1rem;
   }
-
   .content :global(h1) { display: none; }
-
   .content :global(h2) {
     font-size: 1.15rem;
     font-weight: 600;
     margin: 2rem 0 1rem;
   }
-
   .content :global(h3) {
     font-size: 1.05rem;
     font-weight: 600;
     margin: 1.5rem 0 0.8rem;
   }
-
   .content :global(p) {
     margin-bottom: 1rem;
     text-indent: 2em;
   }
-
   .content :global(blockquote) {
     border-left: 2px solid var(--line);
     padding-left: 1rem;
     color: var(--text2);
     margin: 1.5rem 0;
   }
-
   .content :global(blockquote p) { text-indent: 0; }
-
   .content :global(strong) { font-weight: 600; }
-
   .content :global(mark.pagefind-highlight) {
     color: #ffce5e;
     background: none;
     font-weight: 600;
   }
-
   .content :global(sup) { color: var(--text3); font-size: 0.7em; }
-
   .content :global(.footnote-ref) {
     color: var(--text3);
     text-decoration: none;
     font-size: 0.75em;
     vertical-align: super;
   }
-
   .content :global(.footnotes) {
     margin-top: 3rem;
     padding-top: 1.5rem;
@@ -99,76 +117,44 @@ const { Content } = await render(article);
     font-size: 0.85rem;
     color: var(--text2);
   }
-
   .content :global(.footnotes h2) { display: none; }
-
   .content :global(.footnotes ol) { padding-left: 1.2rem; }
-
   .content :global(.footnotes li) {
     margin-bottom: 0.5rem;
     line-height: 1.55;
     text-indent: 0;
   }
-
   .content :global(.footnotes li p) { text-indent: 0; margin-bottom: 0; }
-
   .content :global(.footnotes li:target) {
     background: var(--bg2);
     padding: 0.2rem 0.4rem;
     border-radius: 2px;
   }
-
   .content :global(.footnotes .data-footnote-backref) {
     color: var(--text3);
     text-decoration: none;
     margin-left: 0.4em;
   }
-
-  .content :global(.footnotes .data-footnote-backref:hover) {
-    color: var(--text2);
-  }
-
+  .content :global(.footnotes .data-footnote-backref:hover) { color: var(--text2); }
   .content :global(hr) {
     border: none;
     border-top: 1px solid var(--line);
     margin: 2rem 0;
   }
-
   .content :global(ol),
   .content :global(ul) {
     padding-left: 2em;
     margin-bottom: 1rem;
   }
-
   .content :global(li) { margin-bottom: 0.3rem; }
 
   @media (max-width: 767px) {
-    .content { font-size: 0.95rem; }
+    .content { font-size: 1.12rem; }
+    h1 { font-size: 1.4rem; }
   }
 
-
-  /* 移动端浮动按钮 */
-  .sel-fab {
-    display: none;
-    position: fixed;
-    z-index: 999;
-    padding: 6px 14px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    color: var(--text);
-    background: var(--bg2);
-    border: 1px solid var(--line);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-    cursor: pointer;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  @media (pointer: coarse) {
-    .sel-fab { display: block; }
-  }
-
-  /* 复制成功提示 */
-  .toast {
+  /* Dynamically created on document.body — must be :global */
+  :global(.toast) {
     position: fixed;
     bottom: 2rem;
     left: 50%;
@@ -184,363 +170,18 @@ const { Content } = await render(article);
     transition: opacity 0.3s;
     pointer-events: none;
   }
-  .toast.show { opacity: 1; }
+  :global(.toast.show) { opacity: 1; }
 </style>
 
 <script>
-  // ── 相对位置选段分享 ──────────────────────────────────────
-  // 用纯文本偏移 [start,end] 定位，hash 格式 #start-end（如 #234-567）。
-  // 正文为固定历史文本，不存在编辑偏移，故无需容错锚点。
-
-  const ARTICLE_SEL = 'article.content';
-  const isCoarsePointer = () => matchMedia('(pointer: coarse)').matches;
-
-  // ════════ 1. DOM ↔ 纯文本偏移 ════════
-
-  function getTextOffset(root: Node, node: Node, offset: number): number {
-    // 端点可能落在 Text（字符偏移，如拖选/双击）或 Element（子节点偏移，如三击选段）。
-    // Range.toString() 对两者都给出「root 起点到端点的字符数」，
-    // 与 setSelectionFromOffsets 的 TreeWalker 遍历对称。
-    const range = document.createRange();
-    range.setStart(root, 0);
-    range.setEnd(node, offset);
-    return range.toString().length;
-  }
-
-  function setSelectionFromOffsets(root: Node, startOff: number, endOff: number): Range | null {
-    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let charIdx = 0;
-    let n: Text | null;
-    let startNode: Text | null = null, startOffset = 0;
-    let endNode: Text | null = null, endOffset = 0;
-    while ((n = tw.nextNode() as Text | null)) {
-      const len = n.nodeValue?.length ?? 0;
-      if (!startNode && charIdx + len >= startOff) {
-        startNode = n;
-        startOffset = startOff - charIdx;
-      }
-      if (charIdx + len >= endOff) {
-        endNode = n;
-        endOffset = endOff - charIdx;
-        break;
-      }
-      charIdx += len;
-    }
-    if (!startNode || !endNode) return null;
-    const range = document.createRange();
-    range.setStart(startNode, startOffset);
-    range.setEnd(endNode, endOffset);
-    return range;
-  }
-
-  // ════════ 2. 高亮 & 滚动 ════════
-
-  function highlightRange(range: Range, scroll: boolean = false) {
-    CSS.highlights.set('sel-hl', new Highlight(range));
-    if (scroll) {
-      const rect = range.getBoundingClientRect();
-      const targetY = window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
-      window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
-    }
-    setTimeout(() => CSS.highlights.delete('sel-hl'), 2500);
-  }
-
-  function smoothScrollTo(target: Element, isRef = false) {
-    const y = target.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.2;
-    window.scrollTo({ top: y, behavior: 'smooth' });
-
-    // 暖色高亮：深色背景上醒目，持续 2.5s。
-    const bg = 'rgba(255, 196, 87, 0.25)';
-    const duration = 2500;
-
-    if (isRef) {
-      // 回跳正文序号：序号本身很小，靠 box-shadow 光晕扩散 + 数字变亮确保一眼可见。
-      // id 在 <a> 上（GFM 输出 <sup><a id="fnref-1">1</a></sup>），直接用 target。
-      const glow = '0 0 0 4px rgba(255, 196, 87, 0.25)';
-      target.animate(
-        [
-          { backgroundColor: 'transparent', color: 'var(--text3)', boxShadow: 'none' },
-          { backgroundColor: bg, color: '#ffce5e', boxShadow: glow, offset: 0.1 },
-          { backgroundColor: bg, color: '#ffce5e', boxShadow: glow, offset: 0.75 },
-          { backgroundColor: 'transparent', color: 'var(--text3)', boxShadow: 'none' },
-        ],
-        { duration, easing: 'ease-out' },
-      );
-    } else {
-      target.animate(
-        [
-          { backgroundColor: 'transparent' },
-          { backgroundColor: bg, offset: 0.1 },
-          { backgroundColor: bg, offset: 0.75 },
-          { backgroundColor: 'transparent' },
-        ],
-        { duration, easing: 'ease-out' },
-      );
-    }
-  }
-
-  // ════════ 3. 剪贴板 & Toast ════════
-
-  // 复制到剪贴板：优先现代 Clipboard API（需安全上下文：HTTPS 或 localhost）。
-  // http 局域网 IP 等非安全上下文下 navigator.clipboard 为 undefined，
-  // 此时用 textarea + execCommand 兜底（plain http 上唯一可行的方式）。
-  function copyText(text: string): Promise<void> {
-    if (navigator.clipboard?.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    let ok = false;
-    try { ok = document.execCommand('copy'); } catch {}
-    ta.remove();
-    return ok ? Promise.resolve() : Promise.reject(new Error('execCommand copy failed'));
-  }
-
-  function copyLink(start: number, end: number) {
-    const url = `${location.origin}${location.pathname}#${start}-${end}`;
-    copyText(url)
-      .then(() => toast('已复制'))
-      .catch((e) => { console.error('[copy]:', e); toast('复制失败'); });
-  }
-
-  function toast(msg: string) {
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.textContent = msg;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => {
-      el.classList.remove('show');
-      setTimeout(() => el.remove(), 300);
-    }, 2000);
-  }
-
-  // ════════ 4. 选区读取 ════════
-
-  // 当前选区在文章里的文本偏移；无有效选区返回 null。
-  // 【成本】会字符串化正文（getTextOffset 两次），只在真正复制/校验时调用。
-  function getSelectedOffsets(): [number, number] | null {
-    const sel = window.getSelection();
-    const article = document.querySelector(ARTICLE_SEL);
-    if (!sel || sel.isCollapsed || !article || !sel.rangeCount) return null;
-    const range = sel.getRangeAt(0);
-    if (!article.contains(range.commonAncestorContainer)) return null;
-    const start = getTextOffset(article, range.startContainer, range.startOffset);
-    const end = getTextOffset(article, range.endContainer, range.endOffset);
-    if (start === end) return null;
-    return [start, end];
-  }
-
-  // 触点是否落在当前选区上（允许多行 rect + 手指 padding）。
-  // 【成本】O(选区行数)，不碰正文文本，供高频的 touch 判定使用。
-  function pointInSelection(x: number, y: number, pad = 10): boolean {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
-    const range = sel.getRangeAt(0);
-    const article = document.querySelector(ARTICLE_SEL);
-    if (!article || !article.contains(range.commonAncestorContainer)) return false;
-    const rects = range.getClientRects();
-    for (let i = 0; i < rects.length; i++) {
-      const r = rects[i];
-      if (
-        x >= r.left - pad && x <= r.right + pad &&
-        y >= r.top - pad && y <= r.bottom + pad
-      ) return true;
-    }
-    return false;
-  }
-
-  // ════════ 5. Hash 解析 & 跳转 ════════
-
-  function handleHash() {
-    const m = location.hash.match(/^#(\d+)-(\d+)$/);
-    if (!m) return;
-    const start = parseInt(m[1], 10);
-    const end = parseInt(m[2], 10);
-    if (end <= start) return;
-    const article = document.querySelector(ARTICLE_SEL);
-    if (!article) return;
-    const range = setSelectionFromOffsets(article, start, end);
-    if (range) highlightRange(range, true);
-  }
-
-  // ════════ 6. 事件接线 ════════
-
-  // ── 桌面：Alt+C（复制选段链接） ──
-  // 不用 Ctrl+Shift+C：被 Linux 中文输入法(IBus/Fcitx)的「Ctrl+Shift 切换引擎」抢占。
-  document.addEventListener('keydown', (e) => {
-    if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
-      e.preventDefault();
-      const offsets = getSelectedOffsets();
-      if (offsets) copyLink(offsets[0], offsets[1]);
-    }
-  });
-
-  // ── 移动端浮动按钮（复制入口的兜底） ──
-  const fab = document.createElement('button');
-  fab.className = 'sel-fab';
-  fab.textContent = '复制链接';
-  fab.hidden = true;
-  document.body.appendChild(fab);
-
-  // 只需「有没有有效选区 + 屏幕位置」，均为 O(1)：不字符串化正文（否则划选时每帧卡顿）。
-  function showFab() {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount) { hideFab(); return; }
-    const range = sel.getRangeAt(0);
-    const article = document.querySelector(ARTICLE_SEL);
-    if (!article || !article.contains(range.commonAncestorContainer)) { hideFab(); return; }
-    const rect = range.getBoundingClientRect();
-    fab.style.top = `${Math.max(8, rect.top - 44)}px`;          // position:fixed，视口坐标，不加 scrollY
-    fab.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - 50, window.innerWidth - 120))}px`;
-    fab.hidden = false;
-  }
-
-  function hideFab() { fab.hidden = true; }
-
-  // 划选时 selectionchange 每帧触发 → 这里只做 O(1) 判断与定位，绝不在此算偏移。
-  document.addEventListener('selectionchange', () => {
-    requestAnimationFrame(() => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) setTimeout(hideFab, 150);
-      else if (isCoarsePointer()) showFab();
-    });
-  });
-
-  fab.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const offsets = getSelectedOffsets();   // 点击那一刻才付偏移成本
-    if (offsets) copyLinkWithDebounce(offsets);
-    hideFab();
-  });
-
-  // ── 移动端：长按已有选区复制（另有 contextmenu 同源触发） ──
-  // Android 事件顺序复杂：长按既可能触发计时器，也可能直接触发 contextmenu。
-  // 两者都指向同一段复制逻辑，靠 lastCopyAt 去重。
-  const LONG_PRESS_MS = 480;
-  const MOVE_CANCEL_PX = 14;
-  let pressTimer: ReturnType<typeof setTimeout> | null = null;
-  let pressOffsets: [number, number] | null = null;
-  let pressX = 0;
-  let pressY = 0;
-  let lastCopyAt = 0;
-
-  // 防长按计时器 + 紧随的 contextmenu 双触发同一次复制（800ms 内只复制一次）。
-  function copyLinkWithDebounce(offsets: [number, number]) {
-    const now = Date.now();
-    if (now - lastCopyAt < 800) return;
-    lastCopyAt = now;
-    copyLink(offsets[0], offsets[1]);
-  }
-
-  function clearLongPress() {
-    if (pressTimer !== null) {
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  }
-
-  function fireLongPressCopy() {
-    const offsets = pressOffsets;
-    clearLongPress();
-    pressOffsets = null;
-    if (offsets) {
-      copyLinkWithDebounce(offsets);
-      hideFab();
-      navigator.vibrate?.(15);
-    }
-  }
-
-  document.addEventListener('touchstart', (e) => {
-    clearLongPress();
-    pressOffsets = null;
-
-    if (!fab.hidden && e.target !== fab) setTimeout(hideFab, 200);
-    if (!isCoarsePointer() || e.touches.length !== 1) return;
-
-    // 必须 touchstart 时就已有选区，且点在选区上（避免首次长按选词被误触发）。
-    const t = e.touches[0];
-    const offsets = getSelectedOffsets();
-    if (!offsets || !pointInSelection(t.clientX, t.clientY)) return;
-
-    pressOffsets = offsets;
-    pressX = t.clientX;
-    pressY = t.clientY;
-    pressTimer = setTimeout(fireLongPressCopy, LONG_PRESS_MS);
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (pressTimer === null || !e.touches.length) return;
-    const t = e.touches[0];
-    if (Math.abs(t.clientX - pressX) > MOVE_CANCEL_PX || Math.abs(t.clientY - pressY) > MOVE_CANCEL_PX) {
-      clearLongPress();
-      pressOffsets = null;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', () => {
-    clearLongPress();
-    // 保留 pressOffsets 一小会儿，供紧随其后的 contextmenu 使用。
-    setTimeout(() => { pressOffsets = null; }, 50);
-  }, { passive: true });
-
-  document.addEventListener('touchcancel', () => {
-    clearLongPress();
-    pressOffsets = null;
-  }, { passive: true });
-
-  // Android 长按常伴随 contextmenu；在「已有选区上长按」时接管并复制。
-  document.addEventListener('contextmenu', (e) => {
-    if (!isCoarsePointer()) return;
-    if (Date.now() - lastCopyAt < 800) { e.preventDefault(); return; }  // 计时器已复制过：吞掉原生菜单
-    if (!pressOffsets) return;                                          // 非长按复制手势
-    if (!pointInSelection(e.clientX, e.clientY, 24)) return;
-    e.preventDefault();
-    fireLongPressCopy();
-  });
-
-  // ── 脚注平滑跳转 ──
-  document.querySelector(ARTICLE_SEL)?.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const fnRef = target.closest('a[data-footnote-ref]');   // 跳到脚注
-    if (fnRef) {
-      e.preventDefault();
-      const id = fnRef.getAttribute('href')?.slice(1);
-      const footnote = id && document.getElementById(id);
-      if (footnote) smoothScrollTo(footnote);
-      return;
-    }
-    const backRef = target.closest('a.data-footnote-backref');  // 跳回正文序号
-    if (backRef) {
-      e.preventDefault();
-      const id = backRef.getAttribute('href')?.slice(1);
-      const ref = id && document.getElementById(id);
-      if (ref) smoothScrollTo(ref, true);
-    }
-  });
-
-  // ── Hash 跳转（等字体加载完，避免布局偏移导致位置不准） ──
-  if (location.hash.match(/^#\d+-\d+$/)) {
-    document.fonts.ready.then(() => {
-      window.scrollTo(0, 0);          // 先回顶部，再定位
-      requestAnimationFrame(handleHash);
-    });
-  }
-  window.addEventListener('hashchange', handleHash);
+  import { initArticle } from '../../scripts/article';
+  initArticle();
 </script>
 
-<!-- 搜索结果跳转高亮：单独 inline 脚本，避免被 Vite preload 包装影响动态 import -->
 <script type="module" is:inline>
   if (new URLSearchParams(location.search).getAll('pagefind-highlight').length) {
     import('/pagefind/pagefind-highlight.js').then(({ default: PagefindHighlight }) => {
-      new PagefindHighlight({
-        addStyles: false,                // 用站点暖色字色，不用默认黄底黑字
-        highlightParam: 'pagefind-highlight',
-      });
+      new PagefindHighlight({ addStyles: false, highlightParam: 'pagefind-highlight' });
       document.querySelector('mark.pagefind-highlight')
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });

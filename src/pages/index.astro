@@ -1,28 +1,20 @@
 ---
-import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
+import { getArticlesSorted, VOLUME_LABELS, VOLUME_NUMS } from '../lib/volumes';
 
-const articles = await getCollection('volumes');
-const volumes = [1, 2, 3, 4, 5, 6, 7];
-const volumeLabels: Record<number, string> = {
-  1: '第一卷', 2: '第二卷', 3: '第三卷', 4: '第四卷',
-  5: '第五卷', 6: '第六卷（静火版）', 7: '第七卷（静火版）'
-};
-
-const grouped = volumes.map(v => ({
+const articles = await getArticlesSorted();
+const grouped = VOLUME_NUMS.map((v) => ({
   volume: v,
-  label: volumeLabels[v],
-  articles: articles
-    .filter(a => a.data.volume === v)
-    .sort((a, b) => a.data.order - b.data.order)
+  label: VOLUME_LABELS[v],
+  articles: articles.filter((a) => a.data.volume === v),
 }));
 ---
 
 <Layout title="目录">
-  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2rem;">
+  <div class="header">
     <div>
-      <h1 style="font-size:1.4rem;margin-bottom:0.3rem;">毛泽东选集</h1>
-      <p style="font-size:0.78rem;color:var(--text2);">全七卷 · {articles.length} 篇</p>
+      <h1>毛泽东选集</h1>
+      <p class="sub">全七卷 · {articles.length} 篇</p>
     </div>
     <a href="/search" class="search-icon" aria-label="搜索">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -32,15 +24,15 @@ const grouped = volumes.map(v => ({
     </a>
   </div>
 
-  {grouped.map(g => (
-    <section style="margin-bottom:2rem;">
-      <h2 style="font-size:0.82rem;color:var(--text2);padding-bottom:0.4rem;border-bottom:1px solid var(--line);margin-bottom:0.3rem;">{g.label}</h2>
-      <ol style="list-style:none;padding:0;">
-        {g.articles.map(article => (
+  {grouped.map((g) => (
+    <section class="vol">
+      <h2>{g.label}</h2>
+      <ol>
+        {g.articles.map((article) => (
           <li>
-            <a href={`/${article.data.volume}/${article.data.order}`} style="display:flex;justify-content:space-between;align-items:baseline;gap:0.75rem;padding:0.35rem 0;">
+            <a href={`/${article.data.volume}/${article.data.order}`}>
               <span>{article.data.title}</span>
-              {article.data.date && <span style="font-size:0.7rem;color:var(--text3);white-space:nowrap;">{article.data.date}</span>}
+              {article.data.date && <time>{article.data.date}</time>}
             </a>
           </li>
         ))}
@@ -50,16 +42,45 @@ const grouped = volumes.map(v => ({
 </Layout>
 
 <style>
+  .header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.3rem; }
+  .sub { font-size: 0.78rem; color: var(--text2); }
+
   .search-icon {
     color: var(--text2);
     display: flex;
     align-items: center;
     padding: 0.3rem;
     border-radius: 4px;
-    transition: color 0.15s;
   }
   .search-icon:hover { color: var(--text); }
 
+  .vol { margin-bottom: 2rem; }
+  .vol h2 {
+    font-size: 0.82rem;
+    color: var(--text2);
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 0.3rem;
+  }
+  ol { list-style: none; padding: 0; }
+  li a {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+  }
+  time {
+    font-size: 0.7rem;
+    color: var(--text3);
+    white-space: nowrap;
+  }
   @media (max-width: 767px) {
     li a { flex-direction: column; gap: 0.1rem; }
   }
