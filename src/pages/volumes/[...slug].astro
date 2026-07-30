@@ -295,8 +295,9 @@ const { Content } = await render(article);
 
   // ── 复制链接 ──
 
-  function copyLink(start: number, end: number, snippet: string) {
-    const text = getFullText();
+  function copyLink(start: number, end: number) {
+    const article = document.querySelector(ARTICLE_SEL);
+    const text = article?.textContent ?? '';
     const a1 = anchor(text, start);
     const a2 = anchor(text, end);
     const encoded = encodeSelection(start, end);
@@ -313,16 +314,6 @@ const { Content } = await render(article);
       document.body.removeChild(ta);
       toast('已复制');
     });
-  }
-
-  function getFullText(): string {
-    const article = document.querySelector(ARTICLE_SEL);
-    return article?.textContent ?? '';
-  }
-
-  function getSelectedSnippet(): string {
-    const sel = window.getSelection();
-    return sel?.toString().trim() ?? '';
   }
 
   function getSelectedOffsets(): [number, number] | null {
@@ -372,8 +363,7 @@ const { Content } = await render(article);
       e.preventDefault();
       const offsets = getSelectedOffsets();
       if (!offsets) return;
-      const snippet = getSelectedSnippet();
-      copyLink(offsets[0], offsets[1], snippet);
+      copyLink(offsets[0], offsets[1]);
     }
   });
 
@@ -421,8 +411,7 @@ const { Content } = await render(article);
     e.stopPropagation();
     const offsets = getSelectedOffsets();
     if (!offsets) return;
-    const snippet = getSelectedSnippet();
-    copyLink(offsets[0], offsets[1], snippet);
+    copyLink(offsets[0], offsets[1]);
     hideFab();
     window.getSelection()?.removeAllRanges();
   });

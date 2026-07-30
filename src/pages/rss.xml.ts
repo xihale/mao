@@ -23,14 +23,7 @@ export async function GET(context: APIContext) {
   });
 }
 
-function parseDate(dateStr: string): Date {
-  const yearMap: Record<string, string> = {
-    '一九': '1919', '二零': '200', '一九三': '193', '一九四': '194',
-    '一九五': '195', '一九六': '196', '一九七': '197',
-  };
-  // Try extracting year like "一九三七年七月"
+function parseDate(dateStr: string): Date | undefined {
   const m = dateStr.match(/(\d{4})/);
-  if (m) return new Date(`${m[1]}-01-01`);
-  // Fallback: return epoch
-  return new Date('1930-01-01');
+  return m ? new Date(`${m[1]}-01-01`) : undefined;
 }
