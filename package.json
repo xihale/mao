@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "bunx --bun astro dev",
-    "build": "bunx --bun astro build && bunx pagefind --site dist && cp -r dist/pagefind public/pagefind",
+    "build": "bunx --bun astro build && node scripts/pagefind.mjs",
+    "build:search": "bunx --bun astro build && node scripts/pagefind.mjs --force",
     "preview": "bunx --bun astro preview",
     "extract": "bun run extract-epub.mjs"
   },

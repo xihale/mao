@@ -36,6 +36,7 @@ Thumbs.db
 
 # Pagefind (build artifact)
 public/pagefind/
+.pagefind-cache/
 
 # Lock files (commit for reproducible builds)
 # bun.lock is already tracked
