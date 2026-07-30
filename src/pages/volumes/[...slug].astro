@@ -23,8 +23,8 @@ const { Content } = await render(article);
 ---
 
 <Layout title={article.data.title}>
-  <h1 data-pagefind-meta="title" style="font-size:1.5rem;margin:0.8rem 0 0.3rem;">{article.data.title}</h1>
-  <p style="font-size:0.82rem;color:var(--text2);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
+  <h1 data-pagefind-meta="title" style="font-size:1.3rem;margin:0.8rem 0 0.3rem;">{article.data.title}</h1>
+  <p style="font-size:0.75rem;color:var(--text2);margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--line);">
     {article.data.period && <>{article.data.period}</>}
     {article.data.period && article.data.date && <> · </>}
     {article.data.date && <>{article.data.date}</>}
@@ -35,28 +35,28 @@ const { Content } = await render(article);
   </article>
 
   <nav style="display:flex;justify-content:space-between;margin-top:3rem;gap:1rem;">
-    {prev && <a href={`/volumes/${prev.id}`} style="font-size:0.85rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
+    {prev && <a href={`/volumes/${prev.id}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">&larr; {prev.data.title}</a>}
     {!prev && <span />}
-    {next && <a href={`/volumes/${next.id}`} style="font-size:0.85rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
+    {next && <a href={`/volumes/${next.id}`} style="font-size:0.78rem;color:var(--text2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{next.data.title} &rarr;</a>}
   </nav>
 </Layout>
 
 <style>
   .content {
-    line-height: 1.7;
-    font-size: 1.125rem;
+    line-height: 1.55;
+    font-size: 1rem;
   }
 
   .content :global(h1) { display: none; }
 
   .content :global(h2) {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
     font-weight: 600;
     margin: 2rem 0 1rem;
   }
 
   .content :global(h3) {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 600;
     margin: 1.5rem 0 0.8rem;
   }
@@ -83,12 +83,12 @@ const { Content } = await render(article);
     font-weight: 600;
   }
 
-  .content :global(sup) { color: var(--text3); font-size: 0.75em; }
+  .content :global(sup) { color: var(--text3); font-size: 0.7em; }
 
   .content :global(.footnote-ref) {
     color: var(--text3);
     text-decoration: none;
-    font-size: 0.8em;
+    font-size: 0.75em;
     vertical-align: super;
   }
 
@@ -143,7 +143,7 @@ const { Content } = await render(article);
   .content :global(li) { margin-bottom: 0.3rem; }
 
   @media (max-width: 767px) {
-    .content { font-size: 1.05rem; }
+    .content { font-size: 0.95rem; }
   }
 
 
@@ -154,7 +154,7 @@ const { Content } = await render(article);
     z-index: 999;
     padding: 6px 14px;
     border-radius: 9999px;
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     color: var(--text);
     background: var(--bg2);
     border: 1px solid var(--line);
