@@ -11,6 +11,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>{title} · 毛泽东选集</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
@@ -40,6 +41,17 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
         --text3: #666;
         --line: #222;
         --serif: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #fafafa;
+          --bg2: #f0f0f0;
+          --text: #1a1a1a;
+          --text2: #555;
+          --text3: #888;
+          --line: #ddd;
+        }
       }
 
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
