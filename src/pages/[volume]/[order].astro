@@ -313,10 +313,12 @@ const { Content } = await render(article);
     }, 2000);
   }
 
-  // ── 桌面端：Ctrl+Shift+C ──
+  // ── 桌面端：Alt+C（复制选段链接）
+  // 注：原 Ctrl+Shift+C / Ctrl+Shift+L 在 Linux 上被中文输入法(IBus/Fcitx)的
+  // 「Ctrl+Shift 切换引擎」全局快捷键抢占，按键到不了浏览器，故改用 Alt+C。
 
   document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
       const offsets = getSelectedOffsets();
       if (!offsets) return;
