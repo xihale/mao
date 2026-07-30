@@ -4,6 +4,10 @@ node_modules/
 # Build output
 dist/
 .astro/
+build/
+
+# Local font subset copies (CI downloads from GitHub Release tag `fonts`)
+public/fonts/
 
 # Environment variables
 .env

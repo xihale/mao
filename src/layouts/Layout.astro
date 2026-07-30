@@ -16,11 +16,22 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <link rel="canonical" href={canonicalURL} />
     <link rel="alternate" type="application/rss+xml" title="毛泽东选集" href={new URL('/rss.xml', Astro.site)} />
 
-    <link rel="preconnect" href="https://fonts.loli.net" crossorigin />
-    <link rel="preconnect" href="https://gstatic.loli.net" crossorigin />
-    <link href="https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet" />
-
     <style is:global>
+      @font-face {
+        font-family: 'Noto Serif SC';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/NotoSerifSC-Regular.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Noto Serif SC';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/NotoSerifSC-SemiBold.woff2') format('woff2');
+      }
+
       :root {
         --bg: #0c0c0c;
         --bg2: #161616;
@@ -39,7 +50,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
         font-family: var(--serif);
         background: var(--bg);
         color: var(--text);
-        line-height: 1.8;
+        line-height: 1.65;
         min-height: 100dvh;
       }
 

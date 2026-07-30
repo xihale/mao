@@ -43,20 +43,20 @@ const { Content } = await render(article);
 
 <style>
   .content {
-    line-height: 1.9;
-    font-size: 1rem;
+    line-height: 1.7;
+    font-size: 1.125rem;
   }
 
   .content :global(h1) { display: none; }
 
   .content :global(h2) {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: 600;
     margin: 2rem 0 1rem;
   }
 
   .content :global(h3) {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 600;
     margin: 1.5rem 0 0.8rem;
   }
@@ -106,7 +106,7 @@ const { Content } = await render(article);
 
   .content :global(.footnotes li) {
     margin-bottom: 0.5rem;
-    line-height: 1.75;
+    line-height: 1.55;
     text-indent: 0;
   }
 
@@ -143,7 +143,7 @@ const { Content } = await render(article);
   .content :global(li) { margin-bottom: 0.3rem; }
 
   @media (max-width: 767px) {
-    .content { font-size: 0.95rem; }
+    .content { font-size: 1.05rem; }
   }
 
 
@@ -321,10 +321,37 @@ const { Content } = await render(article);
     const article = document.querySelector(ARTICLE_SEL);
     if (!sel || sel.isCollapsed || !article || !sel.rangeCount) return null;
     const range = sel.getRangeAt(0);
+    if (!article.contains(range.commonAncestorContainer)) return null;
     const start = getTextOffset(article, range.startContainer, range.startOffset);
     const end = getTextOffset(article, range.endContainer, range.endOffset);
     if (start === end) return null;
     return [start, end];
+  }
+
+  /** 触点是否落在当前选区（允许多行 rect + 手指 padding） */
+  function pointInSelection(x: number, y: number, pad = 10): boolean {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+    const range = sel.getRangeAt(0);
+    const article = document.querySelector(ARTICLE_SEL);
+    if (!article || !article.contains(range.commonAncestorContainer)) return false;
+    const rects = range.getClientRects();
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      if (
+        x >= r.left - pad && x <= r.right + pad &&
+        y >= r.top - pad && y <= r.bottom + pad
+      ) return true;
+    }
+    return false;
+  }
+
+  let lastCopyAt = 0;
+  function copySelectionLink(offsets: [number, number]) {
+    const now = Date.now();
+    if (now - lastCopyAt < 800) return; // 防 touch 长按 + contextmenu 双触发
+    lastCopyAt = now;
+    copyLink(offsets[0], offsets[1]);
   }
 
   // ── Toast ──
@@ -367,7 +394,11 @@ const { Content } = await render(article);
     }
   });
 
-  // ── 移动端：浮动按钮 ──
+  // ── 移动端：选中后长按选区 → 复制相对位置链接 ──
+  // Android：先划选/点选，再长按已选文字；避免「第一次长按出选区」被误触发。
+  // 另保留浮动按钮作为兜底。
+
+  const isCoarsePointer = () => matchMedia('(pointer: coarse)').matches;
 
   const fab = document.createElement('button');
   fab.className = 'sel-fab';
@@ -379,10 +410,12 @@ const { Content } = await render(article);
 
   function showFab() {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) { hideFab(); return; }
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { hideFab(); return; }
+    if (!getSelectedOffsets()) { hideFab(); return; }
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    fab.style.top = `${rect.top + window.scrollY - 40}px`;
+    // position:fixed 用视口坐标，不要加 scrollY
+    fab.style.top = `${Math.max(8, rect.top - 44)}px`;
     fab.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - 50, window.innerWidth - 120))}px`;
     fab.hidden = false;
     fabVisible = true;
@@ -394,14 +427,12 @@ const { Content } = await render(article);
   }
 
   document.addEventListener('selectionchange', () => {
-    // 延迟一帧让浏览器完成选区
     requestAnimationFrame(() => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
         setTimeout(hideFab, 150);
-      } else {
-        // 仅在 pointer: coarse 时显示（CSS 已控制，JS 也做判断）
-        if (matchMedia('(pointer: coarse)').matches) showFab();
+      } else if (isCoarsePointer()) {
+        showFab();
       }
     });
   });
@@ -411,17 +442,93 @@ const { Content } = await render(article);
     e.stopPropagation();
     const offsets = getSelectedOffsets();
     if (!offsets) return;
-    copyLink(offsets[0], offsets[1]);
+    copySelectionLink(offsets);
     hideFab();
-    window.getSelection()?.removeAllRanges();
   });
 
-  // 点击其他地方隐藏 fab
+  const LONG_PRESS_MS = 480;
+  const MOVE_CANCEL_PX = 14;
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+  /** touchstart 时已有的选区；null = 本次手势不是「在已有选区上长按」 */
+  let pressOffsets: [number, number] | null = null;
+  let pressX = 0;
+  let pressY = 0;
+
+  function clearLongPress() {
+    if (pressTimer !== null) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  }
+
+  function fireLongPressCopy() {
+    const offsets = pressOffsets;
+    clearLongPress();
+    pressOffsets = null;
+    if (!offsets) return;
+    copySelectionLink(offsets);
+    hideFab();
+    try { navigator.vibrate?.(15); } catch { /* ignore */ }
+  }
+
   document.addEventListener('touchstart', (e) => {
+    clearLongPress();
+    pressOffsets = null;
+
     if (fabVisible && e.target !== fab) {
       setTimeout(hideFab, 200);
     }
+
+    if (!isCoarsePointer() || e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    // 必须 touchstart 时就已有选区，且点在选区上
+    const offsets = getSelectedOffsets();
+    if (!offsets || !pointInSelection(t.clientX, t.clientY)) return;
+
+    pressOffsets = offsets;
+    pressX = t.clientX;
+    pressY = t.clientY;
+    pressTimer = setTimeout(fireLongPressCopy, LONG_PRESS_MS);
   }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (pressTimer === null || !e.touches.length) return;
+    const t = e.touches[0];
+    if (
+      Math.abs(t.clientX - pressX) > MOVE_CANCEL_PX ||
+      Math.abs(t.clientY - pressY) > MOVE_CANCEL_PX
+    ) {
+      clearLongPress();
+      pressOffsets = null;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    clearLongPress();
+    // 保留 pressOffsets 一小会儿，供紧随其后的 contextmenu 使用
+    setTimeout(() => { pressOffsets = null; }, 50);
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    clearLongPress();
+    pressOffsets = null;
+  }, { passive: true });
+
+  // Android 长按常伴随 contextmenu；在「已有选区上长按」时接管并复制
+  document.addEventListener('contextmenu', (e) => {
+    if (!isCoarsePointer()) return;
+    // 刚通过计时器复制过：吞掉原生菜单，避免闪一下
+    if (Date.now() - lastCopyAt < 800) {
+      e.preventDefault();
+      return;
+    }
+    // 仅当本次手势开始时已有选区（pressOffsets），避免首次长按选词被劫持
+    if (!pressOffsets) return;
+    if (!pointInSelection(e.clientX, e.clientY, 24)) return;
+    e.preventDefault();
+    fireLongPressCopy();
+  });
 
   // ── Hash 解析 & 跳转 ──
 

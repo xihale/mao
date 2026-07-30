@@ -8,7 +8,9 @@
     "build": "bunx --bun astro build && node scripts/pagefind.mjs",
     "build:search": "bunx --bun astro build && node scripts/pagefind.mjs --force",
     "preview": "bunx --bun astro preview",
-    "extract": "bun run extract-epub.mjs"
+    "extract": "bun run extract-epub.mjs",
+    "fonts:subset": "python3 scripts/subset-font.py",
+    "fonts:download": "mkdir -p public/fonts && curl -fsSL -o /tmp/fonts-subset.zip \"https://github.com/xihale/mao/releases/download/fonts/fonts-subset.zip\" && unzip -o /tmp/fonts-subset.zip -d public/fonts"
   },
   "dependencies": {
     "@astrojs/rss": "4.0.19",
