@@ -9,8 +9,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "astro check && tsc --noEmit -p tsconfig.json",
     "build": "astro build && pagefind --site dist",
-    "preview": "bunx --bun astro preview",
-    "fonts:download": "mkdir -p src/fonts && curl -fsSL -o /tmp/fonts-subset.zip \"https://github.com/xihale/mao/releases/download/fonts/fonts-subset.zip\" && unzip -o /tmp/fonts-subset.zip -d src/fonts"
+    "preview": "bunx --bun astro preview"
   },
 
   "dependencies": {

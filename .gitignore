@@ -6,9 +6,6 @@ dist/
 .astro/
 build/
 
-# Local font subset copies (CI downloads from GitHub Release tag `fonts`)
-src/fonts/
-
 # Environment variables
 .env
 .env.local
