@@ -18,17 +18,17 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      - name: Download font subset into src/fonts
+        run: |
+          mkdir -p src/fonts
+          curl -fsSL -o /tmp/fonts-subset.zip \
+            "https://github.com/${{ github.repository }}/releases/download/fonts/fonts-subset.zip"
+          unzip -o /tmp/fonts-subset.zip -d src/fonts
+          ls -lh src/fonts
+
       - run: bun run check
 
       - run: bun run build
-
-      - name: Download font subset into dist
-        run: |
-          mkdir -p dist/fonts
-          curl -fsSL -o /tmp/fonts-subset.zip \
-            "https://github.com/${{ github.repository }}/releases/download/fonts/fonts-subset.zip"
-          unzip -o /tmp/fonts-subset.zip -d dist/fonts
-          ls -lh dist/fonts
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'

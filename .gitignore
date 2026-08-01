@@ -7,7 +7,7 @@ dist/
 build/
 
 # Local font subset copies (CI downloads from GitHub Release tag `fonts`)
-public/fonts/
+src/fonts/
 
 # Environment variables
 .env
