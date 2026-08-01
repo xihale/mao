@@ -1,0 +1,14 @@
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+# HTML / RSS / pagefind / search:
+# browser revalidates on each visit (picks up new content fast after a deploy),
+# CF edge caches up to 21 days — Pages purges the edge automatically on deploy too.
+/*
+  Cache-Control: public, max-age=0, must-revalidate, s-maxage=1814400
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# Content-hashed Vite assets (JS / CSS / woff2): filename changes on edit,
+# so they are safe to cache immutably in browsers and at the edge forever.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
