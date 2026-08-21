@@ -19,18 +19,11 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
     <style is:global>
       @font-face {
-        font-family: 'Noto Serif SC';
+        font-family: 'LXGW WenKai';
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url('../fonts/NotoSerifSC-Regular.woff2') format('woff2');
-      }
-      @font-face {
-        font-family: 'Noto Serif SC';
-        font-style: normal;
-        font-weight: 600;
-        font-display: swap;
-        src: url('../fonts/NotoSerifSC-SemiBold.woff2') format('woff2');
+        src: url('../fonts/LXGWWenKai.woff2') format('woff2');
       }
 
       :root {
@@ -40,7 +33,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
         --text2: #999;
         --text3: #666;
         --line: #222;
-        --serif: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+        --serif: 'LXGW WenKai', 'Songti SC', 'SimSun', serif;
       }
 
       @media (prefers-color-scheme: light) {
