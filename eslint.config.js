@@ -10,6 +10,8 @@ export default defineConfig(
     'node_modules/**',
     '.astro/**',
     'build/**',
+    // Server-side deploy scripts run under plain node/bash, not the web build
+    'scripts/server/**',
   ]),
 
   eslint.configs.recommended,
