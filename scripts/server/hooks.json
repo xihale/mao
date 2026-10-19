@@ -1,0 +1,35 @@
+[
+  {
+    "id": "mao-deploy",
+    "execute-command": "/usr/bin/sudo",
+    "http-methods": ["POST"],
+    "pass-arguments-to-command": [
+      {"source": "string", "name": "-H"},
+      {"source": "string", "name": "-u"},
+      {"source": "string", "name": "mao-ci"},
+      {"source": "string", "name": "/usr/local/lib/webhook-deploy"},
+      {"source": "string", "name": "/home/mao-ci/mao/scripts/server/deploy.sh"},
+      {"source": "string", "name": "refs/heads/master"},
+      {"source": "string", "name": "mao"},
+      {"source": "payload", "name": "after"}
+    ],
+    "trigger-rule": {
+      "and": [
+        {
+          "match": {
+            "type": "payload-hmac-sha256",
+            "secret": "PLACEHOLDER",
+            "parameter": {"source": "header", "name": "X-Hub-Signature-256"}
+          }
+        },
+        {
+          "match": {
+            "type": "value",
+            "value": "refs/heads/master",
+            "parameter": {"source": "payload", "name": "ref"}
+          }
+        }
+      ]
+    }
+  }
+]
