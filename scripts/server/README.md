@@ -50,9 +50,12 @@ placeholder — substitute the real one at install time), `deploy.sh`.
 
 jp2 has no public `:443`: Xray REALITY owns it and steers unauthenticated TLS
 to Caddy on `127.0.0.1:10443` (self-steal). So every site block binds
-`127.0.0.1`, and `mao.xihale.top` must be in the REALITY `serverNames` list
-(`/usr/local/etc/xray/config.json`, which `jp-admin` may rewrite — re-add after
-its updates).
+`127.0.0.1` and proves itself with an ACME HTTP-01 cert. Nothing else is
+needed — verified 2026-10-19: `mao.xihale.top` served a valid cert while
+`serverNames` still listed only `jp2.xihale.top`/`vl.jp2.xihale.top`, i.e.
+REALITY forwards any non-REALITY SNI to `dest` regardless. Do **not** add the
+site to `serverNames` (it changes REALITY's own accept list and needs an xray
+restart that drops live sessions).
 
 ```caddyfile
 (deployhook) {
@@ -60,25 +63,45 @@ its updates).
 	reverse_proxy @deployhook unix//run/webhook.sock
 }
 
-mao.xihale.top, mao.jp2.xihale.top {
+http://mao.xihale.top, http://mao.jp2.xihale.top {
+	redir https://{host}{uri} permanent
+}
+
+https://mao.xihale.top, https://mao.jp2.xihale.top {
 	bind 127.0.0.1
 	import deployhook
 	encode zstd gzip
 	root * /srv/mao
-	header /pagefind/* Cache-Control "public, max-age=0, must-revalidate"
-	header /deploy-meta.json Cache-Control "public, max-age=0, must-revalidate"
-	header /_astro/* Cache-Control "public, max-age=2592000"
-	header !Cache-Control "public, max-age=2592000"
+	# hashed build output: immutable; everything else revalidates so a push is
+	# visible immediately (the deploy also keeps retired _astro/ for 32d).
+	# NOTE: the last `header` wins per path, so each bucket needs its own
+	# mutually exclusive matcher.
+	@immutable path /_astro/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	@volatile path /pagefind/* /deploy-meta.json
+	header @volatile Cache-Control "no-cache"
+	@rest not path /_astro/* /pagefind/* /deploy-meta.json
+	header @rest Cache-Control "public, max-age=0, must-revalidate"
+	# Pagefind ships its wasm without a usable extension; without this MIME
+	# WebAssembly.instantiateStreaming throws and search falls back to the slow
+	# non-streaming path (still works, just slower + a console warning).
+	@pagefindwasm path /pagefind/wasm.*.pagefind
+	header @pagefindwasm Content-Type application/wasm
 	try_files {path} {path}.html {path}/index.html
-	file_server
+	file_server {
+		precompressed gzip
+	}
 	tls {
-		disable_tlsalpn_challenge
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
 	}
 }
 ```
 
-`max-age=2592000` (30d) is the shell TTL; `deploy.sh` keeps retired `_astro/`
-for 32d. Changing either means changing both.
+HTML/feeds revalidate (`max-age=0, must-revalidate`) so a push is visible on the
+next load; hashed `_astro/` is immutable for a year, and `deploy.sh` still keeps
+retired `_astro/` for 32d as a safety net for a tab left open across a deploy.
 
 ## Install (repeatable)
 
@@ -131,3 +154,6 @@ Rollback = `git checkout <old-sha>` in the clone and re-run `deploy.sh`.
 - `mao.xihale.top` must be **DNS-only** (grey cloud) at Cloudflare: a proxied
   record would have Cloudflare terminate TLS and dial `:443`, which is REALITY,
   not Caddy.
+- The runner posts ntfy notifications only when `~/.ntfy-notify` exists (topic
+  line 1, `user:pass` line 2); it is absent on jp2, so deploys are silent —
+  only `~/deploy.log` records them.
