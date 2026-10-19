@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Server-side deploy job for mao.xihale.top — started by scripts/server/webhook.mjs
-# (or manually: ssh zzy_hk, then `sudo -u mao-ci bash ~/mao/scripts/server/deploy.sh`).
+# Server-side deploy job for mao.xihale.top on jp2 — dispatched by the shared
+# webhook receiver (adnanh/webhook → sudo whitelist → /usr/local/lib/webhook-deploy;
+# see scripts/server/README.md), or manually: ssh jp2, then
+# `sudo -u mao-ci bash ~/mao/scripts/server/deploy.sh`.
 #
 #   1. shallow-fetch master into the persistent clone
 #   2. CI gate (astro check + tsc + eslint) — a failing check keeps the old
@@ -10,6 +12,10 @@
 #      retires into ~/mao-attic for ~32d (outlives the 30d shell TTL)
 set -Eeuo pipefail
 umask 022
+
+# The receiver hops through sudo, which resets the environment (secure_path
+# has no ~/.bun/bin) — pin the toolchain path here instead of relying on it.
+export PATH="$HOME/.bun/bin:$PATH"
 
 REF="${1:-refs/heads/master}"
 BRANCH="${REF#refs/heads/}"
@@ -42,7 +48,7 @@ cat "$0" > "$SELF_SNAP"
 
 git fetch --depth=1 origin "$BRANCH"
 git checkout -q -B "$BRANCH" FETCH_HEAD
-# untracked caches (node_modules, dist) survive on purpose
+# untracked caches (node_modules, dist, .astro) survive on purpose
 
 # We were spawned from the pre-fetch checkout; if deploy.sh itself changed,
 # re-exec so the new revision's logic publishes this push. After the re-exec
@@ -72,7 +78,7 @@ printf '{"sha":"%s","branch":"%s","deployedAt":"%s"}\n' \
 # it (max-age lives in the Caddy block — keep TTL < retention when changing
 # either side). Attic dirs are pruned by their own age, i.e. measured from
 # retirement, independent of deploy cadence. $HOME (not /srv) — the web-served
-# tree stays lean and ReadWritePaths only covers home + /srv/mao.
+# tree stays lean and /srv/mao is the only writable web path.
 ATTIC="$HOME/mao-attic"
 mkdir -p "$ATTIC"
 rsync -a --delete --delay-updates --exclude=/_astro \
